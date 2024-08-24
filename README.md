@@ -33,11 +33,6 @@ Rebuilds the project by running the `build` target and then runs the program wit
 ### `cli:`
 Runs the `build` target and then executes the program in CLI mode.
 
-### `one-file:`
-- Merges the `rrex2.c` file into a single `rrex2full.c` file using `rmerge`.
-- Formats the merged file using `clang-format`.
-- Compiles `rrex2full.c` into an optimized, statically linked executable `rrexfull.o` with all warnings enabled.
-
 ### `compiler:`
 Compiles `compiler.c` into an optimized executable `compiler.o` and then runs it.
 
