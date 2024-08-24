@@ -1,0 +1,6 @@
+.vscode
+.bzr
+*.o
+rrex2
+rrex2full.c
+rrex2full

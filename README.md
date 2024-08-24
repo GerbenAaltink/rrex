@@ -1,0 +1,3 @@
+ - Segmenation fault fix is expr ends with \\d?
+ - rassert(!rrex("123", "[123]+b")); doesn't work
+ - abc with abc[gg]d matches valid. Shouldn't be so
