@@ -1,5 +1,8 @@
 all: one-file format_all build run
 
+update_rlib:
+	cp ../rlib/rlib.c ./rlib.h
+
 format_all:
 	clang-format *.c *.h -i
 
