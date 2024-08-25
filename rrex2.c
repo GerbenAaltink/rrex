@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
        2000000 for 15s -> this is minimum to get consistent result
        1000000 for 7.5s
    */
-    long times = 100000;
+    long times = 2000000;
     if (argc > 1) {
         if (!strcmp(argv[1], "cli")) {
             repl();
