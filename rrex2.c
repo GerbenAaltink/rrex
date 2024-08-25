@@ -34,8 +34,8 @@ void rrex_repeat(char *s, char *r) {
     }
 }
 
-int wins_retoor = 0;
-int loss_retoor = 0;
+int wins_rrex = 0;
+int loss_rrex = 0;
 nsecs_t total_execution_time = 0;
 long total_times = 0;
 
@@ -138,12 +138,12 @@ void benchmark(long times, char *s, char *e) {
     rbench_t *r;
     r = rbench_new();
     r->stdout = false;
-    r->add_function(r, "executor", "retoor", (void *)rrex_repeat);
+    r->add_function(r, "executor", "rrex", (void *)rrex_repeat);
     r->add_function(r, "executor", "clib", (void *)cregex_repeat);
     if (r->execute2(r, times, s, e)->winner == 1) {
-        wins_retoor++;
+        wins_rrex++;
     } else {
-        loss_retoor++;
+        loss_rrex++;
     }
     total_execution_time += r->execution_time;
     total_times += times * 2;
@@ -182,7 +182,7 @@ void rrex_benchmark_tests(long times) {
     benchmark(times, "abcdefgh", "^.*gh$");
     benchmark(times, "randomtextbeforeabcdefgh", "^random.*gh$");
     benchmark(times, "abcdefg", "a?bcdf?ef?g");
-    printf("Times won: %d / %d\n", wins_retoor, wins_retoor + loss_retoor);
+    printf("Times won: %d / %d\n", wins_rrex, wins_rrex + loss_rrex);
     printf("Total execution time: %s\n", format_time(total_execution_time));
     printf("Total times: %s\n", rformat_number(total_times));
 }
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
        2000000 for 15s -> this is minimum to get consistent result
        1000000 for 7.5s
    */
-    long times = 20000000;
+    long times = 100000;
     if (argc > 1) {
         if (!strcmp(argv[1], "cli")) {
             repl();

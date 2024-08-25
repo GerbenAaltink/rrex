@@ -9,6 +9,10 @@ This regular expression validator is made with the target to be faster than the 
  - rassert(!rrex("123", "[123]+b")); doesn't work
  - abc with abc[gg]d matches valid. Shouldn't be so
 
+## Benchmark and test
+Benchmark vs. glibc regex
+![Gif of build process](build.gif)
+
 ## Make
 
 ### `all:`
