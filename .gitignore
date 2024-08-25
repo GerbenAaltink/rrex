@@ -8,3 +8,4 @@ rrex.coverage
 rrex.coverage/
 *.cast
 *.tty
+regex.py
