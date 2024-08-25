@@ -5,7 +5,7 @@
 This regular expression validator is made with the target to be faster than the glibc regular expression validator and with success. In 23/25 tests it scores a better result than the original glibc validator. My bytecode compiler is way faster than the one provided by glibc and my executor often. For single validation, my validator is always a better choice.
 
 ## Benchmark and test
-Benchmark vs. glibc regex
+Benchmark vs. glibc regex. (Animated gif, takes some time to load)
 
 ![Gif of build process](build.gif)
 
