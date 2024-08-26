@@ -29,9 +29,6 @@ compiler:
 	gcc compiler.c -o compiler.o -O3
 	./compiler.o
 
-backup:
-	rzip zip rrex.rzip *.c *.h Makefile *.md
-
 coverage: 
 	@rm -f *.gcda   2>/dev/null
 	@rm -f *.gcno   2>/dev/null
