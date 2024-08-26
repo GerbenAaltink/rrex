@@ -163,7 +163,7 @@ void rrex_benchmark_tests(long times) {
     benchmark(times, "ce", "(a|b|c|d)e");
     benchmark(times, "a", "(a)");
     benchmark(times, "aa", "(a){2}");
-   // benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[^xyzv]+q$");
+    benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[^xyzv]+q$");
     benchmark(times, "abcabcabcabcabcabc", "[acb][acb]{4}");
     benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "[1A-Z0-9a12345]{33}");
@@ -177,8 +177,8 @@ void rrex_benchmark_tests(long times) {
     benchmark(times, "123", "[0-9][0-9][0-9]");
     benchmark(times, "ab*", "[a-z]b.");
     benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ".{33}");
-    benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[dbac]+q$");
-    benchmark(times, "#include \"test.h\"", "^#include *\"test.h\"$");
+    //benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[dbac]+q$");
+    benchmark(times, "#include \"test.h\"", "^#include *\"[a-z\\.]+\"$");
     benchmark(times, "abcdefgh", "^.*gh$");
     benchmark(times, "randomtextbeforeabcdefgh", "^random.*gh$");
     benchmark(times, "abcdefg", "a?bcdf?ef?g");

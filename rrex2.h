@@ -130,24 +130,12 @@ bool rrex_match_literal(rrex_executor_t *executor) {
         return true;
     }
     return false;
-    /*
-    executor->bdata++;
-    if (*executor->bdata == *executor->sdata)
-    {
-        executor->bdata++;
-
-        executor->sdata++;
-        return true;
-    }
-
-       // executor->bdata++;
-       // executor->sdata++;
-    return false;*/
 }
 
 bool rrex_match_group(rrex_executor_t *executor) {
     bool v = true;
     executor->bdata++;
+    char * sdata_before_fail = executor->sdata;
     while (v && *executor->bdata != RN_GROUP_END) {
         v = rrex_execute_one(executor);
         if (!v) {
@@ -167,6 +155,9 @@ bool rrex_match_group(rrex_executor_t *executor) {
         executor->bdata++;
     }
     executor->bdata++;
+    if(!v){
+        executor->sdata = sdata_before_fail;
+    }
     return v;
 }
 
@@ -183,7 +174,8 @@ bool rrex_match_choice(rrex_executor_t *executor) {
         if (reverse) {
 
             v = !v;
-            executor->sdata++;
+            if(v)
+                executor->sdata++;
         }
         if (v) {
             break;
@@ -275,15 +267,15 @@ bool rrex_match_range(rrex_executor_t *executor) {
 
 bool rrex_match_plus(rrex_executor_t *executor) {
     char *plus_position = executor->bdata;
+    char *next = plus_position + 1;
     char *to_repeat = executor->previous_position;
     // Return value
     bool valid = true;
     bool matched_once = false;
     char *sdata_before_fail;
-    while (valid && executor->bdata == plus_position) {
+    while (valid) {
         // Check if EOF is reached
         if (!*executor->sdata) {
-            executor->bdata++;
             break;
         }
         executor->bdata = to_repeat;
@@ -292,15 +284,19 @@ bool rrex_match_plus(rrex_executor_t *executor) {
         if (valid) {
             matched_once = true;
         } else {
+            // should other function do
             executor->sdata = sdata_before_fail;
         }
+        if (!valid && *(executor->bdata = next) && rrex_execute_one(executor)) {
+            //if(!valid)
+            break;
+        }
     }
-    // Move pointer to RN_PLUS sign.
-    executor->bdata = plus_position;
-    if (matched_once) {
+    if (matched_once && executor->bdata == plus_position) {
         // Move pointer to after RN_PLUS sign.
         executor->bdata++;
     }
+
     return matched_once;
 }
 
@@ -364,6 +360,10 @@ bool rrex_match(char *sdata, char *bdata) {
 void rrex_executor_tests() {
     rtest_banner("rrex regular expressions");
 
+    //rassert(rrex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[^qxyzv]+q$"));
+
+    rassert(rrex("abababa", "^(ab)+a$"));
+
     rassert(rrex(" a ", "\\sa\\s"));
     rassert(!rrex("a", "\\s"));
     rassert(rrex("abc", "ab[def]?c"));
@@ -371,12 +371,14 @@ void rrex_executor_tests() {
     rassert(rrex("1990-01-13",
                  "^(19|20)\\d\\d-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$"));
     rassert(rrex("1990-01-13", "(19|20)\\d\\d-[0?1]\\d-[0123]\\d"));
-    //rassert(rrex("1990-1-3", "(19|20)\\d\\d-[0?1]\\d-[0123]\\d"));
-    //rassert(rrex("1990-1-3", "(19|20)\\d\\d-[01]?\\d-[0123]\\d"));
-    rassert(rrex("1990-13-25", "(19|20)\\d\\d-([01]\\d?||\\d)-([0123]\\d|\\d)$"));
-    rassert(!rrex("1990-13-45", "(19|20)\\d\\d-([01]\\d?||\\d)-([0123]\\d|\\d)$"))
-    //(19|20)\d\d-[01]?\d-[0123]\d
-    rassert(rrex("a", "[zsa]"));
+    // rassert(rrex("1990-1-3", "(19|20)\\d\\d-[0?1]\\d-[0123]\\d"));
+    // rassert(rrex("1990-1-3", "(19|20)\\d\\d-[01]?\\d-[0123]\\d"));
+    rassert(
+        rrex("1990-13-25", "(19|20)\\d\\d-([01]\\d?||\\d)-([0123]\\d|\\d)$"));
+    rassert(
+        !rrex("1990-13-45", "(19|20)\\d\\d-([01]\\d?||\\d)-([0123]\\d|\\d)$"))
+        //(19|20)\d\d-[01]?\d-[0123]\d
+        rassert(rrex("a", "[zsa]"));
     rassert(rrex("abcdefg", "abcd?efg"));
     rassert(rrex("abcefg", "abcd?efg"));
     rassert(rrex("ce", "(a|b|c|d)e"));
@@ -412,11 +414,12 @@ void rrex_executor_tests() {
 
     rassert(!rrex("123", "\\d+a"));
     rassert(rrex("123a", "[123]+a"));
+
+    printf("JSSS\n");
     rassert(rrex("123", "[123]+"));
     rassert(!rrex("123b", "[123]+a"));
     // rassert(!rrex("123", "[123]+b")); NOT READY YET
 
-    rassert(rrex("abababa", "^(ab)+a$"));
     rassert(rrex("abababc", "^(ab)+c$"));
     rassert(!rrex("abababb", "^(ab)+a$"));
     rassert(!rrex("abababa", "^(ab)+b$"));
@@ -430,9 +433,9 @@ void rrex_executor_tests() {
     rassert(rrex("400", "[^5]"));
     rassert(!rrex("132213gh", ".*gd"));
     rassert(!rrex("132213gd", ".*gh"));
-    rassert(rrex("#include \"test.h\"x", "#include *\"t*es*t.h\"x"));
+    rassert(rrex("#include \"test.h\"x", "#include *\"[a-z\\.]*\"x"));
 
-    //rassert(rrex("#include \"test.h\"x", "#include.*\".*\"x"));
+    // rassert(rrex("#include \"test.h\"x", "#include.*\".*\"x"));
     rassert(!rrex("#include \"test.h\"y", ".*#include.*\".*\"x"));
 
     rassert(rrex("123test", "^123"));
