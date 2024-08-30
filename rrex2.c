@@ -177,7 +177,7 @@ void rrex_benchmark_tests(long times) {
     benchmark(times, "123", "[0-9][0-9][0-9]");
     benchmark(times, "ab*", "[a-z]b.");
     benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ".{33}");
-    //benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[dbac]+q$");
+    // benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[dbac]+q$");
     benchmark(times, "#include \"test.h\"", "^#include *\"[a-z\\.]+\"$");
     benchmark(times, "abcdefgh", "^.*gh$");
     benchmark(times, "randomtextbeforeabcdefgh", "^random.*gh$");

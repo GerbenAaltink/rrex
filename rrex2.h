@@ -135,7 +135,7 @@ bool rrex_match_literal(rrex_executor_t *executor) {
 bool rrex_match_group(rrex_executor_t *executor) {
     bool v = true;
     executor->bdata++;
-    char * sdata_before_fail = executor->sdata;
+    char *sdata_before_fail = executor->sdata;
     while (v && *executor->bdata != RN_GROUP_END) {
         v = rrex_execute_one(executor);
         if (!v) {
@@ -155,7 +155,7 @@ bool rrex_match_group(rrex_executor_t *executor) {
         executor->bdata++;
     }
     executor->bdata++;
-    if(!v){
+    if (!v) {
         executor->sdata = sdata_before_fail;
     }
     return v;
@@ -174,7 +174,7 @@ bool rrex_match_choice(rrex_executor_t *executor) {
         if (reverse) {
 
             v = !v;
-            if(v)
+            if (v)
                 executor->sdata++;
         }
         if (v) {
@@ -288,7 +288,7 @@ bool rrex_match_plus(rrex_executor_t *executor) {
             executor->sdata = sdata_before_fail;
         }
         if (!valid && *(executor->bdata = next) && rrex_execute_one(executor)) {
-            //if(!valid)
+            // if(!valid)
             break;
         }
     }
@@ -360,7 +360,7 @@ bool rrex_match(char *sdata, char *bdata) {
 void rrex_executor_tests() {
     rtest_banner("rrex regular expressions");
 
-    //rassert(rrex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[^qxyzv]+q$"));
+    // rassert(rrex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[^qxyzv]+q$"));
 
     rassert(rrex("abababa", "^(ab)+a$"));
 
