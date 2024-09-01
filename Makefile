@@ -44,6 +44,27 @@ coverage:
 	@rm -f gmon.out
 	google-chrome rrex.coverage/index.html
 
+build_rrex3:
+	gcc rrex3.c -o rrex3 
+
+run_rrex3:
+	./rrex3 
+
+coverage_rrex3:
+	@rm -f *.gcda   2>/dev/null
+	@rm -f *.gcno   2>/dev/null
+	@rm -f rrex3.coverage.info   2>/dev/null
+	gcc -pg -fprofile-arcs -ftest-coverage -g -o rrex3_coverage.o rrex3.c
+	./rrex3_coverage.o test
+	lcov --capture --directory . --output-file rrex3.coverage.info
+	genhtml rrex3.coverage.info --output-directory rrex3.coverage
+	@rm -f *.gcda   2>/dev/null
+	@rm -f *.gcno   2>/dev/null
+	@rm -f rrex3.coverage.info   2>/dev/null
+	@rm -f rrex3_coverage.o
+	@rm -f gmon.out
+	google-chrome rrex3.coverage/index.html
+
 publish:
 	brz add 
 	brz commit 
