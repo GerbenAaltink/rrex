@@ -5,7 +5,7 @@ rrex2
 rrex2full.c
 rrex2full
 rrex.coverage
-rrex.coverage/
+rrex3.coverage
 *.cast
 *.tty
 regex.py
