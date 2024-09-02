@@ -1,4 +1,4 @@
-#define RREX3_DEBUG 1
+#define RREX3_DEBUG 0
 
 #include "../rlib/rlib.h"
 #include "rrex3.h"
@@ -7,6 +7,8 @@
 
 
 void benchmark(int times, char * str, char * expr){
+
+     regmatch_t matches[10];
      printf("Matching \"%s\" with \"%s\".\n",str,expr);
      regex_t regex;
         if(regcomp(&regex,expr,REG_EXTENDED)){
@@ -16,13 +18,14 @@ void benchmark(int times, char * str, char * expr){
     printf("creg: ");
     RBENCH(times,{
       
-        if(regexec(&regex,str,0,NULL,0)){
+        if(regexec(&regex,str,0,&matches,0)){
             printf("Creg: error executing regular expression.\n");
         }
         
     })
     regfree(&regex); ;
     rrex3_t * rrex = rrex3_compile(NULL,expr);
+    printf("Compiled!\n");
     printf("rrex3 (%s): ",rrex->compiled);
     RBENCH(times, {
         rrex3(rrex, str,expr);
@@ -55,6 +58,7 @@ int main() {
     benchmark(times, "7245 Sr","[0-9][0-9][0-9][0-9] \\w\\w$");
 
     benchmark(times, "abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyzesting","[z-z][e-e]");
-    benchmark(times, "abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyzesting","[z-z]esting");
+    benchmark(times, "abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyzesting","zesting");
+    benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"","\"(.*)\"\"(.*)\"\"(.*)\"");
 
 }

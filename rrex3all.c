@@ -1,7 +1,7 @@
 // RETOOR - Sep  2 2024
 // Found (local) include: ../rlib/rlib.h
 // Found (local) include: rrex3.h
-#define RREX3_DEBUG 1
+#define RREX3_DEBUG 0
 
 // RETOOR - Sep  2 2024
 // Found (local) include: license.h
@@ -2501,6 +2501,7 @@ typedef struct rrex3_t {
     void (*slash_functions[254])(struct rrex3_t *);
     bool valid;
     int match_count;
+    int match_capacity;
     char ** matches;
     bool exit;
     char * __expr;
@@ -2551,9 +2552,9 @@ static bool isalpharange(char *s) {
 }
 
 void rrex3_free_matches(rrex3_t *rrex3){
-    if(!rrex3->match_count)
+    if(!rrex3->matches)
         return;
-    for(int i = 0; i < rrex3->match_count; i++)
+    for(int i = 0; i < rrex3->match_capacity - 1; i++)
 {
         free(rrex3->matches[i]);
         
@@ -2561,6 +2562,7 @@ void rrex3_free_matches(rrex3_t *rrex3){
     free(rrex3->matches);
  rrex3->matches = NULL;
     rrex3->match_count = 0;
+    rrex3->match_capacity = 0;
 }
 
 void rrex3_free(rrex3_t *rrex3) {
@@ -2604,6 +2606,10 @@ bool rrex3_is_function(char chr){
 
 inline static void rrex3_cmp_literal(rrex3_t *rrex3) {
     rrex3_set_previous(rrex3);
+    if(*rrex3->expr == 0 && !*rrex3->str){
+        rprintr("ERROR, EMPTY CHECK");
+        exit(1);
+    }
     if (rrex3->valid == false) {
         rrex3->expr++;
         return;
@@ -2622,9 +2628,13 @@ inline static void rrex3_cmp_literal(rrex3_t *rrex3) {
         rrex3->expr++;
         rrex3->str++;
         rrex3->valid = true;
-        if(*rrex3->expr && rrex3->functions[(int)*rrex3->expr] == rrex3_cmp_literal && !rrex3->inside_brackets && !rrex3_is_function(*rrex3->expr)){
+        /*if(*rrex3->expr &&rrex3->functions[(int)*rrex3->expr] == rrex3_cmp_literal && !rrex3->inside_brackets && !rrex3_is_function(*rrex3->expr)){
             rrex3_cmp_literal(rrex3);
-        }
+            if(rrex3->valid == false){
+                rrex3->expr--;
+                rrex3->valid = true;
+            }
+        }*/
         return;
     }
     rrex3->expr++;
@@ -2779,14 +2789,20 @@ inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
     }
     if (*rrex3->previous.expr == '*') {
         // Support for **
-        rrex3->valid = true;
+        rrex3->valid = false;
         //rrex3->pattern_error = true;
         rrex3->expr++;
         return;
     }
     rrex3->str = rrex3->previous.str;;
     char *next = rrex3->expr + 1;
-    if(*next == ')'){
+    char *next_original = NULL;
+    if(*next == '*'){
+        next++;
+    
+    }
+    if(*next == ')' && *(next + 1)){
+         next_original = next;
       next++;
     }
     char *loop_expr = rrex3->previous.expr;
@@ -2808,7 +2824,12 @@ inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
             if (rrex3_move(rrex3, false)) {
                 // Match rright.
                 success_next = true;
+                if(!next_original){
                 right_next = rrex3->expr;
+                }else{
+                    right_next = next_original;
+                    break;
+                }
                 right_str = rrex3->str;
                 success_next_once = true;
             } else {
@@ -2836,8 +2857,10 @@ inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
                 right_str = rrex3->str;
                 if (*rrex3->expr != ')') {
                   right_next = rrex3->expr + 1; // +1 is the * itself
+               
                 }else{
-                    break;
+                
+                    //break;
                 }
                 
             }
@@ -3093,19 +3116,26 @@ inline static void rrex3_cmp_parentheses(rrex3_t *rrex3) {
     rprinty("\\l Parentheses start check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
            rrex3->valid);
 #endif
+    if(!rrex3->valid){
+        rrex3->expr++;
+        return;
+    }
     rrex3_set_previous(rrex3);
-    rrex3->matches = (char *)realloc(rrex3->matches,(rrex3->match_count +1) * sizeof(char*));
-    rrex3->matches[rrex3->match_count] = (char *)malloc(sizeof(char) * 4096);
+    if(rrex3->match_count == rrex3->match_capacity){
+        
+     rrex3->match_capacity++;
+    rrex3->matches = (char *)realloc(rrex3->matches,rrex3->match_capacity * sizeof(char*));
+    }
     rrex3->matches[rrex3->match_count] = (char *)malloc(strlen(rrex3->str) + 1);
     strcpy(rrex3->matches[rrex3->match_count], rrex3->str);
     char *original_expr = rrex3->expr;
     char *original_str = rrex3->str;
     rrex3->expr++;
     rrex3->inside_parentheses = true;
-    while (*rrex3->expr != ')') {
-        if(!rrex3_move(rrex3, true)){
-            break;
-        }
+    while (*rrex3->expr != ')' && !rrex3->exit) {
+        rrex3_move(rrex3, false);
+        
+        
     }
     while (*rrex3->expr != ')') {
         rrex3->expr++;
@@ -3118,12 +3148,11 @@ inline static void rrex3_cmp_parentheses(rrex3_t *rrex3) {
     rrex3_set_previous(rrex3);
     rrex3->expr = previous_expr;
     if (rrex3->valid == false) {
-        rrex3->str = original_str;
+        rrex3->str = original_str; 
         free(rrex3->matches[rrex3->match_count]);
     } else {
-        rrex3->matches[rrex3->match_count][rrex3->str - original_str] = 0;
+        rrex3->matches[rrex3->match_count][strlen(rrex3->matches[rrex3->match_count]) - strlen(rrex3->str)] = 0; 
         rrex3->match_count++;
-        ;
     }
 #if RREX3_DEBUG == 1
     rprinty("\\l Parentheses end: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
@@ -3172,18 +3201,27 @@ void rrex3_init(rrex3_t *rrex3) {
     rrex3->slash_functions['S'] = rrex3_cmp_whitespace_upper;
     rrex3->slash_functions['b'] = rrex3_cmp_word_start_or_end;
     rrex3->slash_functions['B'] = rrex3_cmp_word_not_start_or_end;
+    rrex3->match_count = 0;
+    rrex3->match_capacity = 0;
+    rrex3->matches = NULL;
     rrex3->compiled = NULL;
-    rrex3_reset(rrex3); 
+    
+    rrex3_reset(rrex3);
+     
 }
 
 rrex3_t *rrex3_new() {
     rrex3_t *rrex3 = (rrex3_t *)malloc(sizeof(rrex3_t));
+  
     rrex3_init(rrex3);
+    
     return rrex3;
 }
 
 rrex3_t * rrex3_compile(rrex3_t * rrex, char * expr){
+  
     rrex3_t * rrex3 = rrex ? rrex : rrex3_new();
+    
     char * compiled = (char *)malloc(strlen(expr) + 1);
     unsigned int count = 0;
     while(*expr){
@@ -3233,7 +3271,8 @@ static bool rrex3_move(rrex3_t *rrex3, bool resume_on_fail) {
     rrex3->function = rrex3->functions[(int)rrex3->bytecode];
     rrex3->function(rrex3);
     if(!*rrex3->expr && !*rrex3->str){
-        printf("GEBEURDD\n");
+        
+        rrex3->exit = true;
         return rrex3->valid;
     }
     if (rrex3->pattern_error)
@@ -3289,6 +3328,7 @@ rrex3_t *rrex3(rrex3_t * rrex3,char *str, char *expr) {
     }else{
         rrex3_reset(rrex3);
     }
+    
     rrex3->_str = str;
     rrex3->_expr = rrex3->compiled ? rrex3->compiled : expr;
     rrex3->str = rrex3->_str;
@@ -3424,8 +3464,22 @@ int rrex3_test(){
     
     
     assert(rrex3(rrex,"aaaabc","(.*)c"));
-    printf("(%d)\n", rrex->valid);
-    exit(0);
+
+    assert(rrex3(rrex, "abcde", ".....$"));
+    
+    assert(rrex3(rrex,"abcdefghijklmnopqrstuvwxyz","..........................$"));
+    //printf("(%d)\n", rrex->valid);
+    
+    assert(rrex3(rrex,"    #include <stdio.h>","#include.*<(.*)>"));
+    assert(!strcmp(rrex->matches[0], "stdio.h"));
+    assert(rrex3(rrex,"    #include \"stdlib.h\"","#include.\"(.*)\""));
+    assert(!strcmp(rrex->matches[0], "stdlib.h")); 
+    assert(rrex3(rrex,"    \"stdio.h\"\"string.h\"\"sys/time.h\"","\"(.*)\"\"(.*)\"\"(.*)\""));
+    assert(!strcmp(rrex->matches[0], "stdio.h"));  
+    assert(!strcmp(rrex->matches[1], "string.h")); 
+    assert(!strcmp(rrex->matches[2], "sys/time.h"));
+    
+    
     rrex3_free(rrex);
 
     #ifdef RLIB_H
@@ -3439,6 +3493,8 @@ int rrex3_test(){
 
 
 void benchmark(int times, char * str, char * expr){
+
+     regmatch_t matches[10];
      printf("Matching \"%s\" with \"%s\".\n",str,expr);
      regex_t regex;
         if(regcomp(&regex,expr,REG_EXTENDED)){
@@ -3448,13 +3504,14 @@ void benchmark(int times, char * str, char * expr){
     printf("creg: ");
     RBENCH(times,{
       
-        if(regexec(&regex,str,0,NULL,0)){
+        if(regexec(&regex,str,0,&matches,0)){
             printf("Creg: error executing regular expression.\n");
         }
         
     })
     regfree(&regex); ;
     rrex3_t * rrex = rrex3_compile(NULL,expr);
+    printf("Compiled!\n");
     printf("rrex3 (%s): ",rrex->compiled);
     RBENCH(times, {
         rrex3(rrex, str,expr);
@@ -3487,7 +3544,8 @@ int main() {
     benchmark(times, "7245 Sr","[0-9][0-9][0-9][0-9] \\w\\w$");
 
     benchmark(times, "abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyzesting","[z-z][e-e]");
-    benchmark(times, "abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyzesting","[z-z]esting");
+    benchmark(times, "abcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyabcdefghijklmnopqrstuvwxyzesting","zesting");
+    benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"","\"(.*)\"\"(.*)\"\"(.*)\"");
 
 }
 
