@@ -1,4 +1,4 @@
-#define RREX3_DEBUG 0
+#define RREX3_DEBUG 1
 
 #include "../rlib/rlib.h"
 #include "rrex3.h"
@@ -42,12 +42,13 @@ int main() {
     int times = 100;
     benchmark(times, "abcdefghijklmnopqrstuvwxyz","abcdefghijklmnopqrstuvwxyz$");
     benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaa","aaaaaaaaaaaaaaaaaaaaaaaaaa$");
+    benchmark(times, "abcdefghijklmnopqrstuvwxyz","..........................$");
+   
     // [abcm] failed
     benchmark(times, "abcdefghijklmnopqrstuvwxyz",".*z");
     benchmark(times, "abcde",".*e");
     benchmark(times, "abcdef",".*f");
     
-benchmark(times, "abcdefghijklmnopqrstuvwxyz","..........................$");
     benchmark(times, "abcdefghijklmnopqrstuvwxyz","[a]b*c+d\\w[f-g][g][h-i][i][^a][abcdefgk][l][m][n][o][p][a-z][r][s][t][u][v][w].*z$");
     benchmark(times, "zzz", "[abcdefghijklmnopqrstuvwxyz][abcdefghijklmnopqrstuvwxyz][abcdefghijklmnopqrstuvwxyz]$");
 

@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef RLIB_H
     #define malloc rmalloc 
@@ -27,7 +28,7 @@ typedef struct rrex3_t {
     void (*slash_functions[254])(struct rrex3_t *);
     bool valid;
     int match_count;
-    char *matches[4096];
+    char ** matches;
     bool exit;
     char * __expr;
     char * __str;
@@ -37,6 +38,7 @@ typedef struct rrex3_t {
     char *str;
     char *compiled;
     bool inside_brackets;
+    bool inside_parentheses;
     bool pattern_error;
     bool match_from_start;
     char bytecode;
@@ -76,18 +78,28 @@ static bool isalpharange(char *s) {
 }
 
 void rrex3_free_matches(rrex3_t *rrex3){
-    for (int i = 0; i < rrex3->match_count; i++) {
+    if(!rrex3->match_count)
+        return;
+    for(int i = 0; i < rrex3->match_count; i++)
+{
         free(rrex3->matches[i]);
+        
     }
+    free(rrex3->matches);
+ rrex3->matches = NULL;
     rrex3->match_count = 0;
 }
 
 void rrex3_free(rrex3_t *rrex3) {
+    if(!rrex3)
+        return;
     if(rrex3->compiled){
         free(rrex3->compiled);
+        rrex3->compiled = NULL;
     }
     rrex3_free_matches(rrex3);
     free(rrex3);
+    rrex3 = NULL;
 }
 static bool rrex3_move(rrex3_t *, bool);
 static void rrex3_set_previous(rrex3_t *);
@@ -284,7 +296,7 @@ inline static void rrex3_cmp_plus(rrex3_t *rrex3) {
 
 inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
 #if RREX3_DEBUG == 1
-    printf("Asterisk start check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+    rprintg("Asterisk start check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
            rrex3->valid);
 #endif
     if (!rrex3->valid) {
@@ -294,43 +306,43 @@ inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
     }
     if (*rrex3->previous.expr == '*') {
         // Support for **
-        rrex3->valid = false;
-        rrex3->pattern_error = true;
+        rrex3->valid = true;
+        //rrex3->pattern_error = true;
         rrex3->expr++;
         return;
     }
     rrex3->str = rrex3->previous.str;;
     char *next = rrex3->expr + 1;
-    while (*next == ')') {
-        next++;
+    if(*next == ')'){
+      next++;
     }
-
     char *loop_expr = rrex3->previous.expr;
     bool success_next = false;
     bool success_next_once = false;
     bool success_current = false;
     char *right_next = NULL;
     char *right_str = rrex3->str;
-    while (*rrex3->str && *rrex3->str != ')') {
+    while (*rrex3->str && *rrex3->expr &&  *rrex3->expr != ')') {
         // Remember original_str because it's modified
         // by checking right and should be restored
         // for checking left so they're matching the
         // same value.
         char *original_str = rrex3->str;
         // Check if right matches.
-
-        rrex3->expr = next;
-        rrex3->valid = true;
-        if (rrex3_move(rrex3, false)) {
-            // Match rright.
-            success_next = true;
-            right_next = rrex3->expr;
-            right_str = rrex3->str;
-            success_next_once = true;
-        } else {
-            // No match Right.
-            success_next = false;
-        }
+        //if(*next != ')'){
+            rrex3->expr = next;
+            rrex3->valid = true;
+            if (rrex3_move(rrex3, false)) {
+                // Match rright.
+                success_next = true;
+                right_next = rrex3->expr;
+                right_str = rrex3->str;
+                success_next_once = true;
+            } else {
+                // No match Right.
+                success_next = false;
+            }
+        //}
         if (success_next_once && !success_next) {
             // Matched previous time but now doesn't.
             break;
@@ -348,10 +360,13 @@ inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
             // NOT SURE< WITHOUT DOET HETZELFDE:
             // original_str = rrex3->str;
             if (!success_next) {
-                if (*rrex3->expr != ')') {
-                    right_next = rrex3->expr + 1; // +1 is the * itself
-                }
                 right_str = rrex3->str;
+                if (*rrex3->expr != ')') {
+                  right_next = rrex3->expr + 1; // +1 is the * itself
+                }else{
+                    break;
+                }
+                
             }
         }
 
@@ -364,7 +379,7 @@ inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
     rrex3->str = right_str;
     rrex3->valid = true;
 #if RREX3_DEBUG == 1
-    printf("Asterisk end check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+    rprintg("Asterisk end check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
            rrex3->valid);
 #endif
 }
@@ -535,7 +550,7 @@ inline static void rrex3_cmp_word_not_start_or_end(rrex3_t *rrex3) {
 
 inline static void rrex3_cmp_brackets(rrex3_t *rrex3) {
 #if RREX3_DEBUG == 1
-    printf("Brackets start: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+    rprintb("\\l Brackets start: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
            rrex3->valid);
 #endif
     rrex3_set_previous(rrex3);
@@ -583,7 +598,7 @@ inline static void rrex3_cmp_brackets(rrex3_t *rrex3) {
     rrex3_set_previous(rrex3);
     rrex3->expr = previous_expr;
 #if RREX3_DEBUG == 1
-    printf("Brackets end: %c:%c:%d\n", *rrex3->expr, *rrex3->str, rrex3->valid);
+    rprintb("\\l Brackets end: %c:%c:%d\n", *rrex3->expr, *rrex3->str, rrex3->valid);
 #endif
 }
 
@@ -602,22 +617,28 @@ inline static void rrex3_cmp_pipe(rrex3_t *rrex3) {
 }
 inline static void rrex3_cmp_parentheses(rrex3_t *rrex3) {
 #if RREX3_DEBUG == 1
-    printf("Parentheses check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+    rprinty("\\l Parentheses start check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
            rrex3->valid);
 #endif
     rrex3_set_previous(rrex3);
+    rrex3->matches = (char *)realloc(rrex3->matches,(rrex3->match_count +1) * sizeof(char*));
+    rrex3->matches[rrex3->match_count] = (char *)malloc(sizeof(char) * 4096);
     rrex3->matches[rrex3->match_count] = (char *)malloc(strlen(rrex3->str) + 1);
     strcpy(rrex3->matches[rrex3->match_count], rrex3->str);
     char *original_expr = rrex3->expr;
     char *original_str = rrex3->str;
     rrex3->expr++;
+    rrex3->inside_parentheses = true;
     while (*rrex3->expr != ')') {
-        rrex3_move(rrex3, false);
+        rrex3_move(rrex3, true);
+        
+        
     }
     while (*rrex3->expr != ')') {
         rrex3->expr++;
     }
     rrex3->expr++;
+    rrex3->inside_parentheses = false;
 
     char *previous_expr = rrex3->expr;
     rrex3->expr = original_expr;
@@ -632,21 +653,19 @@ inline static void rrex3_cmp_parentheses(rrex3_t *rrex3) {
         ;
     }
 #if RREX3_DEBUG == 1
-    printf("Parentheses end: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+    rprinty("\\l Parentheses end: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
            rrex3->valid);
 #endif
 }
 
 
 inline static void rrex3_reset(rrex3_t * rrex3){
- if(rrex3->match_count){
-        rrex3_free_matches(rrex3);
-    }
+     rrex3_free_matches(rrex3);
      rrex3->valid = true;
     rrex3->pattern_error = false;
     rrex3->inside_brackets = false;
+    rrex3->inside_parentheses = false;
     rrex3->exit = false;
-    rrex3->match_count = 0;
     rrex3->previous.expr = NULL;
     rrex3->previous.str = NULL;
     rrex3->previous.bytecode = 0;
@@ -681,7 +700,6 @@ void rrex3_init(rrex3_t *rrex3) {
     rrex3->slash_functions['b'] = rrex3_cmp_word_start_or_end;
     rrex3->slash_functions['B'] = rrex3_cmp_word_not_start_or_end;
     rrex3->compiled = NULL;
-    rrex3->match_count = 0;
     rrex3_reset(rrex3); 
 }
 
@@ -741,8 +759,15 @@ static bool rrex3_move(rrex3_t *rrex3, bool resume_on_fail) {
     rrex3->bytecode = *rrex3->expr;
     rrex3->function = rrex3->functions[(int)rrex3->bytecode];
     rrex3->function(rrex3);
+    if(!*rrex3->expr && !*rrex3->str){
+        printf("GEBEURDD\n");
+        return rrex3->valid;
+    }
     if (rrex3->pattern_error)
-        return false;
+    {
+        rrex3->valid = false;
+        return rrex3->valid;
+    } 
     if (resume_on_fail && !rrex3->valid && *rrex3->expr) {
         // rrex3_set_previous(rrex3);
         rrex3->failed.bytecode = rrex3->bytecode;
@@ -752,6 +777,7 @@ static bool rrex3_move(rrex3_t *rrex3, bool resume_on_fail) {
         rrex3->bytecode = *rrex3->expr;
         rrex3->function = rrex3->functions[(int)rrex3->bytecode];
         rrex3->function(rrex3);
+
         if (!rrex3->valid && !rrex3->pattern_error) {
 
             if (*rrex3->str) {
@@ -777,29 +803,6 @@ static bool rrex3_move(rrex3_t *rrex3, bool resume_on_fail) {
         }
     }
     return rrex3->valid;
-}
-
-rrex3_t *rrex3_match(rrex3_t * rrex3, char *str, char *expr) {
-#if RREX3_DEBUG == 1
-    printf("Regex check: %s:%s:%d\n", expr, str, 1);
-#endif
-    rrex3_reset(rrex3);
-    rrex3->__str = str;
-    rrex3->__expr = expr;
-    rrex3->_str = rrex3->__str;
-    rrex3->str = rrex3->_str;
-    rrex3->_expr = rrex3->__expr;
-    rrex3->expr = rrex3->_expr;
-    while (*rrex3->expr && !rrex3->exit) {
-        if (!rrex3_move(rrex3, true))
-            return NULL;
-    }
-    if(rrex3->valid){
-        return rrex3;
-    }else{
-        rrex3_free(rrex3);
-        return NULL;
-    }
 }
 
 rrex3_t *rrex3(rrex3_t * rrex3,char *str, char *expr) {
@@ -945,6 +948,11 @@ int rrex3_test(){
 
     assert(rrex3(rrex,"123321a", "(123)([0-4][2]1)a$"));
     assert(!strcmp(rrex->matches[1],"321"));
+    
+    
+    assert(rrex3(rrex,"aaaabc","(.*)c"));
+    printf("(%d)\n", rrex->valid);
+    exit(0);
     rrex3_free(rrex);
 
     #ifdef RLIB_H
