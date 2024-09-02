@@ -9,3 +9,4 @@ rrex3.coverage
 *.cast
 *.tty
 regex.py
+rrex3alle.c 
