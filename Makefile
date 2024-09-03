@@ -1,4 +1,4 @@
-all: one-file format_all build run
+all: format_all build run
 
 update_rlib:
 	cp ../rlib/rlib.c ./rlib.h
