@@ -118,6 +118,8 @@ bool validate_dutch_zipcode_rrex(char *s) {
 
 void benchmark_dutch_zipcode(long times, char *s) {
     rbench_t *r = rbench_new();
+    r->show_progress = false;
+    r->stdout = false;
     r->add_function(r, "rrex", "zipcode", (void *)validate_dutch_zipcode_rrex);
     r->add_function(r, "rrex compiled", "zipcode",
                     (void *)validate_dutch_zipcode_rrex_precompiled);
@@ -137,6 +139,7 @@ void benchmark(long times, char *s, char *e) {
     rprint("Benchmark \\l string:<%s> expr:<%s>\t\n", s, e);
     rbench_t *r;
     r = rbench_new();
+    r->show_progress = false;
     r->stdout = false;
     r->add_function(r, "executor", "rrex", (void *)rrex_repeat);
     r->add_function(r, "executor", "clib", (void *)cregex_repeat);
@@ -163,7 +166,7 @@ void rrex_benchmark_tests(long times) {
     benchmark(times, "ce", "(a|b|c|d)e");
     benchmark(times, "a", "(a)");
     benchmark(times, "aa", "(a){2}");
-    benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[^xyzv]+q$");
+    // benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq", "[^xyzv]+q$");
     benchmark(times, "abcabcabcabcabcabc", "[acb][acb]{4}");
     benchmark(times, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "[1A-Z0-9a12345]{33}");

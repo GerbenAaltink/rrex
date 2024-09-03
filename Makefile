@@ -47,12 +47,20 @@ coverage:
 build_and_run_rrex3: build_rrex3 run_rrex3
 
 build_rrex3:
-	gcc rrex3.c -o rrex3 -Wall -Wextra -O3
+	gcc rrex3.c -o rrex3 -Wall -Wextra -O2
 	rmerge rrex3.c > rrex3all.c 
-	gcc -E rrex3.c -o rrex3alle.c -Wall -Wextra -O3 
+	gcc -E rrex3.c -o rrex3alle.c -Wall -Wextra -O2 
 
 run_rrex3:
 	./rrex3 
+
+build_and_run_re: build_re run_re
+
+build_re:
+	gcc re.c -o re -Wall -Wextra -O2
+
+run_re:
+	./re "/home/retoor/projects/rlib" "int.*\b(.*) \b"
 
 coverage_rrex3:
 	@rm -f *.gcda   2>/dev/null

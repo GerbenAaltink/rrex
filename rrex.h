@@ -17,26 +17,6 @@ bool latleast(char *s, unsigned int l) {
     return false;
 }
 
-bool isdigitrange(char *s) {
-    if (!isdigit(*s)) {
-        return false;
-    }
-    if (*(s + 1) != '-') {
-        return false;
-    }
-    return isdigit(*(s + 2));
-}
-
-bool isalpharange(char *s) {
-    if (!isalpha(*s)) {
-        return false;
-    }
-    if (*(s + 1) != '-') {
-        return false;
-    }
-    return isalpha(*(s + 2));
-}
-
 bool long_enough(char *s, char *n) {
     while (++(*n)) {
         if (!(++(*s)))
