@@ -2,13 +2,13 @@
 #define RREX3_DEBUG 0
 #ifndef RREX3_H
 #define RREX3_H
-#include <assert.h>
-#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <ctype.h>
 #ifndef RREX3_DEBUG
 #define RREX3_DEBUG 0
 #endif
@@ -148,14 +148,14 @@ inline static void rrex3_cmp_literal(rrex3_t *rrex3) {
         rrex3->expr++;
         rrex3->str++;
         rrex3->valid = true;
-        // if(*rrex3->expr &&rrex3->functions[(int)*rrex3->expr] ==
-        // rrex3_cmp_literal && !rrex3->inside_brackets &&
-        //! rrex3_is_function(*rrex3->expr)){ rrex3_cmp_literal(rrex3);
-        //   if(rrex3->valid == false){
-        //  rrex3->expr--;
-        // rrex3->valid = true;
-        // }
-        // }
+        //if(*rrex3->expr &&rrex3->functions[(int)*rrex3->expr] ==
+        //rrex3_cmp_literal && !rrex3->inside_brackets &&
+        //!rrex3_is_function(*rrex3->expr)){ rrex3_cmp_literal(rrex3);
+         //   if(rrex3->valid == false){
+              //  rrex3->expr--;
+               // rrex3->valid = true;
+           // }
+       // }
         return;
     }
     rrex3->expr++;
@@ -644,8 +644,8 @@ inline static void rrex3_cmp_parentheses(rrex3_t *rrex3) {
     if (rrex3->match_count == rrex3->match_capacity) {
 
         rrex3->match_capacity++;
-        rrex3->matches = (char **)realloc(
-            rrex3->matches, rrex3->match_capacity * sizeof(char *));
+        rrex3->matches = (char **)realloc(rrex3->matches, rrex3->match_capacity *
+                                                             sizeof(char *));
     }
     rrex3->matches[rrex3->match_count] = (char *)malloc(strlen(rrex3->str) + 1);
     strcpy(rrex3->matches[rrex3->match_count], rrex3->str);
@@ -897,7 +897,7 @@ void rrex3_test() {
     assert(rrex3(rrex, "pppony", ".*pony"));
     assert(rrex3(rrex, "pony", ".*ony"));
     assert(rrex3(rrex, "pony", "po*ny"));
-    // assert(rrex3(rrex,"ppppony", "p*pppony"));
+   // assert(rrex3(rrex,"ppppony", "p*pppony"));
 
     // Plus function
     assert(rrex3(rrex, "pony", "p+ony"));
@@ -932,7 +932,7 @@ void rrex3_test() {
     assert(!rrex3(rrex, "1ab", "1\\Bab"));
     assert(rrex3(rrex, "abc", "a\\Bbc"));
 
-    // Escaping of special characters test.
+    // Escaping of special chars
     assert(rrex3(rrex, "()+*.\\", "\\(\\)\\+\\*\\.\\\\"));
 
     // Pipe
@@ -1013,8 +1013,7 @@ void rrex3_test() {
     assert(!strcmp(rrex->matches[1], "string.h"));
     assert(!strcmp(rrex->matches[2], "sys/time.h"));
     */
-    // assert(rrex3(rrex,"char pony() {
-    // }","\\b\\w+(\\s+\\*+)?\\s+\\w+\\s*\\([^)]*\\)\s*\\{[^{}]*\\}"));
+    //assert(rrex3(rrex,"char pony() { }","\\b\\w+(\\s+\\*+)?\\s+\\w+\\s*\\([^)]*\\)\s*\\{[^{}]*\\}"));
 
     rrex3_free(rrex);
 }
@@ -3099,6 +3098,45 @@ int rstrip_whitespace(char *input, char *output) {
     }
     return count;
 }
+
+void rstrtocstring(const char *input, char *output) {
+    int index = 0;
+    char clean_input[strlen(input) * 2];
+    char *iptr = clean_input;
+    rstraddslashes(input, clean_input);
+    output[index] = '"';
+    index++;
+    while (*iptr) {
+        if (*iptr == '"') {
+            output[index] = '\\';
+            output++;
+        } else if (*iptr == '\\' && *(iptr + 1) == 'n') {
+            output[index] = '\\';
+            output++;
+            output[index] = 'n';
+            output++;
+            output[index] = '"';
+            output++;
+            output[index] = '\n';
+            output++;
+            output[index] = '"';
+            output++;
+            iptr++;
+            iptr++;
+            continue;
+        }
+        output[index] = *iptr;
+        index++;
+        iptr++;
+    }
+    if (output[index - 1] == '"' && output[index - 2] == '\n') {
+        output[index - 1] = 0;
+    } else if (output[index - 1] != '"') {
+        output[index] = '"';
+        output[index + 1] = 0;
+    }
+}
+
 size_t rstrtokline(char *input, char *output, size_t offset, bool strip_nl) {
 
     size_t len = strlen(input);
@@ -4383,8 +4421,10 @@ rbench_function_t *rbench_execute_prepare(rbench_t *r, int findex, long times,
 }
 void rbench_execute_finish(rbench_t *r) {
     rbench_toggle_stdout(r);
-    free(r->progress_bar);
-    r->progress_bar = NULL;
+    if (r->progress_bar) {
+        free(r->progress_bar);
+        r->progress_bar = NULL;
+    }
     r->current->average_execution_time =
         r->current->total_execution_time / r->current->times_executed;
     ;
@@ -4553,6 +4593,7 @@ void rbench_free(rbench_t *r) { free(r); }
 // END OF RLIB
 #endif
 
+
 #include <regex.h>
 
 void benchmark(int times, char *str, char *expr) {
@@ -4628,3 +4669,4 @@ int main() {
     benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\"(.+)\"\"(.+)\"\"(.+)\"");
 }
+
