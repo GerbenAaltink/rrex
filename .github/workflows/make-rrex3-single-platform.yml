@@ -1,0 +1,27 @@
+name: Build and Run
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build
+      working-directory: ${{github.workspace}}
+      run: make build_rrex3
+      
+    - name: Test
+      working-directory: ${{github.workspace}}
+      run: make run_rrex3
+
