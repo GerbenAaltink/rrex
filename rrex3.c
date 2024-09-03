@@ -1,6 +1,6 @@
 #define RREX3_DEBUG 0
 #include "rrex3.h"
-#include "../rlib/rlib.h"
+#include "rlib.h"
 
 #include <regex.h>
 
