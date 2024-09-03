@@ -60,7 +60,7 @@ build_re:
 	gcc re.c -o re -Wall -Wextra -O2
 
 run_re:
-	./re "/home/retoor/projects/rlib" "int.*\b(.*) \b"
+	./re "/home/retoor/projects/rlib" "int.*\\b(.+)\\b"
 
 coverage_rrex3:
 	@rm -f *.gcda   2>/dev/null

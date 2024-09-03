@@ -1,4 +1,5 @@
-#define RREX3_DEBUG 0
+#define RREX3_DEBUG 1
+#include "rrex3.h"
 #include "../rlib/rlib.h"
 
 rrex3_t *rrex;
@@ -35,13 +36,14 @@ void file_found(char *path) {
                          "ponyponyponyponyponyponyponyponyponyponyponyponyponyponyponyponyponyponypony"
                          "ponyponyponyponyponyponyponyponyponyponyponyponyponyponyponyponyponyponypony"
              "\n\n\n\n\n\n\n\n\nint\n\\n\n\n\n");*/
-        strcpy(file_data, "#ifndef RMALLOC_H\n"
+        strcpy(file_data ,  "int "
+                         "abc " 
+                         "#ifndef RMALLOC_H\n"
 
-                          "#define RMALLOC_H\n"
+                          /*"#define RMALLOC_H\n"
 
                           "#include <stdio.h>\n"
-                          "    int   "
-
+                          
                           "#include <stdlib.h>\n"
                           "#include <string.h>\n"
                           "\n"
@@ -89,19 +91,21 @@ void file_found(char *path) {
                           "    return res;\n"
                           "}\n"
                           "\n"
-                          "#endif\n");
-        if (strstr(file_data, "int")) {
-            printf("JA HOOR: %s\n", path);
+                          "#endif\n"*/);
+        //if (strstr(file_data, "int")) {
+        //    printf("JA HOOR: %s\n", path);
             // char file_string_data[strlen(file_data) * 2];
             // rstrtocstring(file_data, file_string_data);
             // printf(file_string_data);
-        }
+        //}
         rrex->str = file_data;
         while (rrex3(rrex, rrex->str, expr)) {
             printf(">%s<\n", rrex->matches[0]);
             printf("J,");
+            break;
             // printf("%s\n",rrex->matches[0]);
         }
+        exit(0);
         printf("\n");
     }
 }
