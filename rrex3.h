@@ -1081,7 +1081,9 @@ rrex3_t *rrex3(rrex3_t *rrex3, char *str, char *expr) {
         if (!rrex3_move(rrex3, true))
             return NULL;
     }
+    rrex3->expr = rrex3->_expr;
     if (rrex3->valid) {
+
         return rrex3;
     } else {
         if (self_initialized) {
@@ -1229,20 +1231,25 @@ void rrex3_test() {
     assert(!strcmp(rrex->matches[0], "stdio.h"));
     assert(!strcmp(rrex->matches[1], "string.h"));
     assert(!strcmp(rrex->matches[2], "sys/time.h"));
-    /*
+
     assert(rrex3(rrex, "    #include <stdio.h>", "#include.+<(.+)>"));
     assert(!strcmp(rrex->matches[0], "stdio.h"));
     assert(rrex3(rrex, "    #include \"stdlib.h\"", "#include.+\"(.+)\""));
     assert(!strcmp(rrex->matches[0], "stdlib.h"));
 
-     assert(rrex3(rrex, "    \"stdio.h\"\"string.h\"\"sys/time.h\"",
-                "\"(.+)\"\"(.+)\"\"(.+)\""));
+    assert(rrex3(rrex, "    \"stdio.h\"\"string.h\"\"sys/time.h\"",
+                 "\"(.+)\"\"(.+)\"\"(.+)\""));
     assert(!strcmp(rrex->matches[0], "stdio.h"));
     assert(!strcmp(rrex->matches[1], "string.h"));
     assert(!strcmp(rrex->matches[2], "sys/time.h"));
-    */
-    // assert(rrex3(rrex,"char pony() {
-    // }","\\b\\w+(\\s+\\*+)?\\s+\\w+\\s*\\([^)]*\\)\s*\\{[^{}]*\\}"));
+
+    assert(rrex3(rrex, "int abc ", "int (.*)[; ]?$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(rrex3(rrex, "int abc;", "int (.*)[; ]?$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    printf("%s\n", rrex->matches[0]);
+    assert(rrex3(rrex, "int abc", "int (.*)[; ]?$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
 
     rrex3_free(rrex);
 }

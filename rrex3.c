@@ -25,7 +25,7 @@ void benchmark(int times, char *str, char *expr) {
     printf("rrex3 (%s): ", rrex->compiled);
     RBENCH(times, {
         
-        if (rrex3(rrex, str, expr)) {
+        if (rrex3(rrex, str, NULL)) {
 
         } else {
             printf("Rrex3: error\n");
@@ -38,10 +38,7 @@ void benchmark(int times, char *str, char *expr) {
 
 int main() {
     rrex3_test();
-    //int times = 5000000;
-     int times = 1;
-
-
+    int times = 1;
 benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\".*\"\".*\"\".*\"");
 
@@ -76,8 +73,9 @@ benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
               "zesting");
     benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\"(.*)\"\"(.*)\"\"(.*)\"");
-    benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
+    benchmark(times, "          \"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\".+\"\".+\"\".+\"");
-    benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
+    benchmark(times, "          \"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\"(.+)\"\"(.+)\"\"(.+)\"");
+
 }
