@@ -1247,9 +1247,26 @@ void rrex3_test() {
     assert(!strcmp(rrex->matches[0], "abc"));
     assert(rrex3(rrex, "int abc;", "int (.*)[; ]?$"));
     assert(!strcmp(rrex->matches[0], "abc"));
-    printf("%s\n", rrex->matches[0]);
     assert(rrex3(rrex, "int abc", "int (.*)[; ]?$"));
     assert(!strcmp(rrex->matches[0], "abc"));
+
+    assert(rrex3(rrex, "#define abc", "#define (.*)"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(rrex3(rrex, "#define abc", "#define (.*)$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(rrex3(rrex, "#define abc 1", "#define (.*) (.*)$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(!strcmp(rrex->matches[1], "1"));
+
+    assert(rrex3(rrex, "#define abc 1  ", "#define (.*) (.*) *$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    printf("<<%s>>\n", rrex->matches[1]);
+    assert(!strcmp(rrex->matches[1], "1"));
+
+    assert(rrex3(rrex, "#define abc \"test with spaces\"  ", "#define (.*) *\"(.*)\" *$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    printf("<<%s>>\n", rrex->matches[1]);
+    assert(!strcmp(rrex->matches[1], "test with spaces"));
 
     rrex3_free(rrex);
 }

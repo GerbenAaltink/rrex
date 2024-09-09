@@ -1,4 +1,4 @@
-// RETOOR - Sep  3 2024
+// RETOOR - Sep  9 2024
 #define RREX3_DEBUG 0
 #ifndef RREX3_H
 #define RREX3_H
@@ -1249,9 +1249,26 @@ void rrex3_test() {
     assert(!strcmp(rrex->matches[0], "abc"));
     assert(rrex3(rrex, "int abc;", "int (.*)[; ]?$"));
     assert(!strcmp(rrex->matches[0], "abc"));
-    printf("%s\n", rrex->matches[0]);
     assert(rrex3(rrex, "int abc", "int (.*)[; ]?$"));
     assert(!strcmp(rrex->matches[0], "abc"));
+
+    assert(rrex3(rrex, "#define abc", "#define (.*)"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(rrex3(rrex, "#define abc", "#define (.*)$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(rrex3(rrex, "#define abc 1", "#define (.*) (.*)$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(!strcmp(rrex->matches[1], "1"));
+
+    assert(rrex3(rrex, "#define abc 1  ", "#define (.*) (.*) *$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    printf("<<%s>>\n", rrex->matches[1]);
+    assert(!strcmp(rrex->matches[1], "1"));
+
+    assert(rrex3(rrex, "#define abc \"test with spaces\"  ", "#define (.*) *\"(.*)\" *$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    printf("<<%s>>\n", rrex->matches[1]);
+    assert(!strcmp(rrex->matches[1], "test with spaces"));
 
     rrex3_free(rrex);
 }
@@ -4854,7 +4871,6 @@ void benchmark(int times, char *str, char *expr) {
     rrex3_t *rrex = rrex3_compile(NULL, expr);
     printf("rrex3 (%s): ", rrex->compiled);
     RBENCH(times, {
-        
         if (rrex3(rrex, str, NULL)) {
 
         } else {
@@ -4869,7 +4885,7 @@ void benchmark(int times, char *str, char *expr) {
 int main() {
     rrex3_test();
     int times = 1;
-benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
+    benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\".*\"\".*\"\".*\"");
 
     benchmark(times, "abcdefghijklmnopqrstuvwxyz",
@@ -4907,6 +4923,5 @@ benchmark(times, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\".+\"\".+\"\".+\"");
     benchmark(times, "          \"stdio.h\"\"string.h\"\"sys/time.h\"",
               "\"(.+)\"\"(.+)\"\"(.+)\"");
-
 }
 

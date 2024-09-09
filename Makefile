@@ -47,9 +47,9 @@ coverage:
 build_and_run_rrex3: build_rrex3 run_rrex3
 
 build_rrex3:
-	gcc rrex3.c -o rrex3 -Wall -Wextra -O2
+	gcc rrex3.c -o rrex3 -Wall -Wextra -Ofast
 	-@rmerge rrex3.c > rrex3all.c 
-	-@gcc -E rrex3.c -o rrex3alle.c -Wall -Wextra -O2 
+	-@gcc -E rrex3.c -o rrex3alle.c -Wall -Wextra -Ofast 
 
 run_rrex3:
 	./rrex3 
