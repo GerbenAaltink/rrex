@@ -54,6 +54,15 @@ build_rrex3:
 run_rrex3:
 	./rrex3 
 
+r4: rrex4 run_rrex4
+
+rrex4: rrex4.c
+	gcc rrex4.c -o rrex4 -Wall -Wextra -Ofast
+
+run_rrex4:
+	./rrex4 
+
+
 build_and_run_re: build_re run_re
 
 build_re:
