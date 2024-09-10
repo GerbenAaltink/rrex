@@ -1,4 +1,4 @@
-#define RREX3_DEBUG 0
+#define RREX3_DEBUG 1
 #include "rrex3.h"
 #include "rlib.h"
 

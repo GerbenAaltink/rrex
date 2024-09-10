@@ -1,5 +1,5 @@
 // RETOOR - Sep  9 2024
-#define RREX3_DEBUG 0
+#define RREX3_DEBUG 1
 #ifndef RREX3_H
 #define RREX3_H
 #include <assert.h>
@@ -620,7 +620,6 @@ inline static void rrex3_cmp_roof(rrex3_t *rrex3) {
 }
 inline static void rrex3_cmp_dollar(rrex3_t *rrex3) {
     rrex3_set_previous(rrex3);
-
 #if RREX3_DEBUG == 1
     printf("Dollar check: %c:%c:%d\n", *rrex3->expr, *rrex3->str, rrex3->valid);
 #endif
@@ -628,6 +627,7 @@ inline static void rrex3_cmp_dollar(rrex3_t *rrex3) {
         rrex3->valid = false;
     }
     rrex3->expr++;
+    
 }
 
 inline static void rrex3_cmp_w(rrex3_t *rrex3) {
@@ -1098,8 +1098,15 @@ rrex3_t *rrex3(rrex3_t *rrex3, char *str, char *expr) {
 void rrex3_test() {
     rrex3_t *rrex = rrex3_new();
 
+
+
+    assert(rrex3(rrex, "#define abc ", "#define *(\\w.*)\n$"));
+    
+    exit(0);
+
     assert(rrex3(rrex, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
                  "\"(.*)\"\"(.*)\"\"(.*)\""));
+
 
     assert(rrex3(rrex, "aaaaaaa", "a*a$"));
 
