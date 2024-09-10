@@ -112,8 +112,8 @@ bool r4_validate_dot(r4_t *r4) {
 
 bool r4_validate_asterisk(r4_t *r4) {
     char *previous = r4->previous;
-    if (r4->str == r4->str_mem)
-        return false;
+    //if (r4->str == r4->str_mem)
+    //    return false;
     if (r4->valid == false) {
         r4->valid = true;
         r4->expr++;
@@ -121,21 +121,57 @@ bool r4_validate_asterisk(r4_t *r4) {
     }
     char *str = r4->str;
     char *expr = r4->expr;
-    r4->expr++;
-    if(*r4->expr == ')'){
-        r4->expr++;
-    }
-    bool right_valid = r4_validate(r4);
-    if (right_valid) {
-            printf("RIGHT_VALIDG\n");
-        return right_valid;
-    } else {
+    //r4->expr++;
+    
+   // if (right_valid) {
+  //          printf("RIGHT_VALIDG\n");
+   //     return right_valid;
+   // } else {
+     
+
+    char *next =r4->expr + 1 ;
+    printf("QQQQ<<%s>>QQQQ\n",next);
         r4->str = str;
         r4->str_mem = str;
-        r4->expr = previous;
-    }
+        //r4->in_block = true;
+
+    bool valid_once = false;
+    char valid_once_str = NULL;
+    char valid_once_expr = NULL;
     r4->valid = true;
-    return r4_validate(r4);
+    while(true){
+        str = r4->str;
+        r4->expr = previous;
+        bool result_left = r4_validate(r4);
+        r4->expr = next ; 
+        r4->str = str;
+        r4->valid = true;
+        bool right_valid = r4_validate(r4);
+        if(right_valid && result_left){
+            valid_once = true;
+            valid_once_expr = r4->expr;
+            valid_once_str = r4->str;
+        }
+        if(!right_valid && valid_once == true){
+            r4->expr = valid_once_expr;
+            r4->str = valid_once_str;
+
+            printf("!!!!%s!!!\n",valid_once_expr);
+            return true;
+        }
+        if(right_valid)
+        {
+            return right_valid;
+        }
+        if(result_left == false){
+            return false;
+        }
+ 
+    }
+   // printf("%d %s\n", result, r4->expr); 
+    
+    //bool right_valid = r4_validate(r4);
+    //return right_valid;
 }
 bool r4_validate_pipe(r4_t *r4) {
     r4->expr++;
@@ -356,7 +392,6 @@ bool r4_validate_range(r4_t *r4){
         r4->expr = previous;
       
         valid = r4_validate(r4); 
-        printf("%d\n",valid); 
         if(!*r4->str)
             break;
         if(!valid){
@@ -398,6 +433,29 @@ bool r4_validate_group_close(r4_t *r4){
 }
 
 bool r4_validate_group_open(r4_t *r4){
+    r4->expr++;
+
+    char * start = r4->str;
+
+    printf("EXPR:%s\n",r4->expr); 
+    bool valid = r4_validate(r4);
+    
+    if(*r4->expr != ')'){
+        printf("ERROR GEEN )!!!\n");
+        exit(1);
+    }
+    char * end = r4->str;
+    printf("%s\n",end);
+    char * new_str = (char * )calloc(sizeof(char), strlen(r4->_str) + 1);
+    
+    strncpy(new_str, start, strlen(start) - strlen(end));
+   
+    printf("<<<<%s>>>>\n",new_str); 
+
+    return r4_validate(r4);
+}
+
+bool r4_validate_group_open2(r4_t *r4){
 
     r4->expr++;
     char data[3000] = {0};
@@ -423,18 +481,16 @@ bool r4_validate_group_open(r4_t *r4){
         r4->str = left_str;
         r4->valid = true;
         r4->expr = expr;
-        printf("%s\n",left_str);
         r4->in_block = true;
         r4_validate(r4);
         r4->expr++;
-        printf("<%s>\n",r4->str);
         expr = r4->expr;
         left_str = r4->str;
     }
     group_end = r4->str;
     char * new_str = (char *)malloc(strlen(r4->_str) + 1);
     strcpy(new_str,group_start);
-    new_str[group_end - group_start] = 0;
+    new_str[strlen(group_end)] = 0;
     
     printf("FOUND!! ((%s))\n",new_str);
     r4->expr++;
@@ -646,8 +702,8 @@ int main() {
         assert(!test_r4("ponyyyd", "^p+o.*yyz$$$$"));
         assert(test_r4("123", "[0-2][2-2][1-3]$"));
         
-        assert(test_r4("abcde","ab(cd)e"));
-        assert(test_r4("abcdefg","ab(.*)efg"));
+        assert(test_r4("abcdeeeeee","ab(cdeee)e"));
+        assert(test_r4("12345678","12(.+)67$"));
         
         assert(test_r4("ppppony","p*pppony"));
         //assert(test_r4("aa","a{2}$"));
