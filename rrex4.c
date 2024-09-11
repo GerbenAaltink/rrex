@@ -1,3 +1,4 @@
+#define R4_DEBUG
 #include "rrex4.h"
 #include <regex.h>
 #include <rlib.h>
@@ -77,7 +78,7 @@ void test_r4_next() {
     r4_free(r);
 }
 
-void bench_all(unsigned int times){
+void bench_all(unsigned int times) {
     assert(bench(times, "suvw",
                  "[abcdefghijklmnopqrstuvw][abcdefghijklmnopqrstuvw]["
                  "abcdefghijklmnopqrstuvw][abcdefghijklmnopqrstuvw]"));
@@ -93,9 +94,9 @@ int main() {
 
     unsigned int times = 1000;
     bench_all(times);
-    
 
     RBENCH(1, {
+        assert(r4_match("#define DEFINETEST 1\n","#define\\s+\\w[\\d\\w_]+\\s+[\\w\\d_]\\s*"));
         assert(r4_match("ponyyy", "^p+o.*yyy$$$$"));
         assert(!r4_match("ponyyy", "p%+o.*yyy$$$$"));
         assert(!r4_match("ponyyyd", "^p+o.*yyz$$$$"));

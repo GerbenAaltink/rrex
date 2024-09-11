@@ -86,11 +86,13 @@ static bool r4_validate_question_mark(r4_t *r4) {
 
 static bool r4_validate_plus(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
-    if (r4->str == r4->str_previous)
-        return false;
     r4->expr++;
     if (r4->valid == false) {
         return false;
+    }
+    if (r4->str == r4->str_previous)
+    {
+        return r4_validate(r4);
     }
     char *str_start = r4->str;
     char *expr_left = r4->expr_previous;
@@ -291,6 +293,7 @@ static bool r4_validate_block_open(r4_t *r4) {
     bool valid_once = false;
     r4->in_block = true;
     while (*r4->expr != ']') {
+        r4->valid = true;
         if (r4_isrange(r4->expr)) {
             char s = *r4->expr;
             char e = *(r4->expr + 2);
