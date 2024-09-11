@@ -56,7 +56,7 @@ run_rrex3:
 
 r4: rrex4 run_rrex4
 
-rrex4: rrex4.c
+rrex4: rrex4.c rrex4.h
 	gcc rrex4.c -o rrex4 -Wall -Wextra -Ofast
 
 run_rrex4:

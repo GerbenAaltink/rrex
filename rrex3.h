@@ -625,7 +625,6 @@ inline static void rrex3_cmp_dollar(rrex3_t *rrex3) {
         rrex3->valid = false;
     }
     rrex3->expr++;
-    
 }
 
 inline static void rrex3_cmp_w(rrex3_t *rrex3) {
@@ -1096,15 +1095,12 @@ rrex3_t *rrex3(rrex3_t *rrex3, char *str, char *expr) {
 void rrex3_test() {
     rrex3_t *rrex = rrex3_new();
 
-
-
     assert(rrex3(rrex, "#define abc ", "#define *(\\w.*)\n$"));
-    
+
     exit(0);
 
     assert(rrex3(rrex, "\"stdio.h\" \"string.h\"\"sys/time.h\"",
                  "\"(.*)\"\"(.*)\"\"(.*)\""));
-
 
     assert(rrex3(rrex, "aaaaaaa", "a*a$"));
 
@@ -1270,7 +1266,8 @@ void rrex3_test() {
     printf("<<%s>>\n", rrex->matches[1]);
     assert(!strcmp(rrex->matches[1], "1"));
 
-    assert(rrex3(rrex, "#define abc \"test with spaces\"  ", "#define (.*) *\"(.*)\" *$"));
+    assert(rrex3(rrex, "#define abc \"test with spaces\"  ",
+                 "#define (.*) *\"(.*)\" *$"));
     assert(!strcmp(rrex->matches[0], "abc"));
     printf("<<%s>>\n", rrex->matches[1]);
     assert(!strcmp(rrex->matches[1], "test with spaces"));
