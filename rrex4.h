@@ -90,8 +90,7 @@ static bool r4_validate_plus(r4_t *r4) {
     if (r4->valid == false) {
         return false;
     }
-    if (r4->str == r4->str_previous)
-    {
+    if (r4->str == r4->str_previous) {
         return r4_validate(r4);
     }
     char *str_start = r4->str;
@@ -317,15 +316,13 @@ static bool r4_validate_block_open(r4_t *r4) {
             if (reversed)
                 r4->str--;
             break;
-        } else if (*r4->expr == *r4->str) {
-            if (!reversed)
-                r4->str++;
-            valid_once = true;
-            r4->expr++;
-            break;
-        } else {
-            r4->expr++;
-        }
+        } /*else if (*r4->expr == *r4->str) {
+             if (!reversed)
+                 r4->str++;
+             valid_once = true;
+             r4->expr++;
+             break;
+         }*/
     }
     char *expr_end = strchr(r4->expr, ']');
     r4->expr = expr_end ? expr_end : r4->expr;
@@ -610,7 +607,6 @@ r4_t *r4_next(r4_t *r, char *expr) {
 bool r4_match(char *str, char *expr) {
     r4_t *r = r4(str, expr);
     bool result = r->valid;
-    printf("%d:(%s)<%s>\n", r->validation_count, r->_str, r->_expr);
     r4_free(r);
     return result;
 }
