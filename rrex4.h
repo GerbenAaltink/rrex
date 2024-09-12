@@ -43,6 +43,7 @@ typedef struct r4_t {
     bool valid;
     bool in_block;
     bool in_range;
+    unsigned int loop_count;
     unsigned int in_group;
     unsigned int match_count;
     unsigned int validation_count;
@@ -103,36 +104,48 @@ static bool r4_validate_question_mark(r4_t *r4) {
     return r4_validate(r4);
 }
 
+
 static bool r4_validate_plus(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     r4->expr++;
-    if (r4->valid == false) {
-        return false;
+    if(r4->valid == false){
+        return false; 
     }
-    if (r4->str == r4->str_previous) {
-        return r4_validate(r4);
-    }
-    char *str_start = r4->str;
-    char *expr_left = r4->expr_previous;
-    char *expr_right = r4->expr;
-    char *return_expr = NULL;
-    if (*expr_right == ')') {
+    char * expr_left = r4->expr_previous;
+    char * expr_right = r4->expr;
+    char * str = r4->str;
+    char * return_expr = NULL;
+    if(*expr_right == ')')
+    {   
         return_expr = expr_right;
-        expr_right++;
+        expr_right++;        
     }
-    r4->expr = expr_right;
-    bool right_valid = r4_validate(r4);
-    if (right_valid) {
-        if (return_expr) {
-            r4->str = str_start;
-            r4->expr = return_expr;
-        }
-        return right_valid;
-    }
-    r4->str = str_start;
-    r4->str_previous = str_start;
+    r4->in_block = true;
     r4->expr = expr_left;
+    while(r4->valid){
+        if(*expr_right){
+            r4->expr = expr_right;
+            r4->in_block = false;
+            if(r4_validate(r4)){
+
+                if(return_expr){
+                    r4->str = str;
+                    r4->expr = return_expr;
+                }
+                return r4_validate(r4);
+            }else{
+                r4->in_block = true;
+            }
+        }
+        r4->valid = true;
+        r4->expr = expr_left;
+        r4->str = str;  
+        r4_validate(r4);
+        str = r4->str;
+    }
+    r4->in_block = false;
     r4->valid = true;
+    r4->expr = return_expr ? return_expr : expr_right;
     return r4_validate(r4);
 }
 
@@ -168,6 +181,53 @@ static bool r4_validate_dot(r4_t *r4) {
 
 static bool r4_validate_asterisk(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
+    r4->expr++;
+    if(r4->valid == false){
+        return true; 
+    }
+    char * expr_left = r4->expr_previous;
+    char * expr_right = r4->expr;
+    char * str = r4->str;
+    char * return_expr = NULL;
+    if(*expr_right == ')')
+    {   
+        printf("YESH\n");
+        return_expr = expr_right;
+        expr_right++;        
+    }
+    r4->in_block = true;
+    r4->expr = expr_left;
+    while(r4->valid){
+        if(*expr_right){
+            r4->expr = expr_right;
+            r4->in_block = false;
+            printf("RIGHT SIDE\n");
+            if(r4_validate(r4)){
+
+                if(return_expr){
+                    r4->str = str;
+            printf("ZEKER\n");
+                    r4->expr = return_expr;
+                }
+                return r4_validate(r4);
+            }else{
+                r4->in_block = true;
+            }
+        }
+        r4->valid = true;
+        r4->expr = expr_left;
+        r4->str = str;  
+        r4_validate(r4);
+        str = r4->str;
+    }
+    r4->in_block = false;
+    r4->valid = true;
+    r4->expr = return_expr ? return_expr : expr_right;
+    return r4_validate(r4);
+}
+
+static bool r4_validate_asterisk2(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
     if (r4->str == r4->str_previous)
         return false;
     r4->expr++;
@@ -183,14 +243,19 @@ static bool r4_validate_asterisk(r4_t *r4) {
         return_expr = expr_right;
         expr_right++;
     }
-    r4->expr = expr_right;
-    bool right_valid = r4_validate(r4);
-    if (right_valid) {
-        if (return_expr) {
-            r4->str = str_start;
-            r4->expr = return_expr;
+    if(*expr_right){
+        r4->expr = expr_right;
+        bool right_valid = r4_validate(r4);
+        if (right_valid) {
+            if (return_expr) {
+                r4->str = str_start;
+                r4->expr = return_expr;
+            }
+            return right_valid;
         }
-        return right_valid;
+    }
+    if(!*r4->str){
+        return r4->valid;
     }
     r4->str = str_start;
     r4->str_previous = str_start;
@@ -473,11 +538,12 @@ static bool r4_validate_group_open(r4_t *r4) {
 
     if (!valid || *r4->expr != ')') {
         // this is a valid case if not everything between () matches
+        r4->in_group--;
         return false;
     }
     if (save_match) {
         char *str_extract_end = r4->str;
-        unsigned int extracted_length = str_extract_end - str_extract_start;
+        unsigned int extracted_length = strlen(str_extract_start) - strlen(str_extract_end);
         char *str_extracted =
             (char *)calloc(sizeof(char), extracted_length + 1);
         strncpy(str_extracted, str_extract_start, extracted_length);
@@ -608,6 +674,7 @@ r4_t *r4(const char *str, const char *expr) {
     r->expr_previous = r->expr;
     r->in_block = false;
     r->in_group = 0;
+    r->loop_count = 0;
     r->in_range = false;
     r4_search(r);
     return r;

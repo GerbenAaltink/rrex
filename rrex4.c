@@ -1,3 +1,5 @@
+#define R4_DEBUGAA
+
 #include "rrex4.h"
 #include <regex.h>
 #include <rlib.h>
@@ -87,6 +89,8 @@ void bench_all(unsigned int times) {
     assert(bench(times, "abc", "def|a?b?c|def"));
     assert(bench(times, "NL18RABO0322309700",
                  "([A-Z]{2})([0-9]{2})([A-Z]{4}[0-9])([0-9]+)$"));
+    assert(bench(times, "a 1 b 2 c 3 d 4 ","([A-Z0-9 ]+)"));
+    
 }
 
 bool r4_match_stats(char *str, char *expr) {
@@ -102,18 +106,37 @@ bool r4_match_stats(char *str, char *expr) {
 
 int main() {
 
+    assert(r4_match_stats("aaadddd","(a+)(d+)$"));
+assert(r4_match_stats("aaa","(a+)$"));
+
+assert(r4_match_stats("aaadddd","(d+)$"));
+assert(r4_match_stats("aaadddd","(d+)"));
+
+assert(r4_match_stats("aaa\"dddd\"","\"(d+)\""));
+
+    assert(r4_match_stats("aaadddd","(a*)(d+)$"));
+assert(r4_match_stats("aaa","(a*)$"));
+
+assert(r4_match_stats("aaadddd","(d*)$"));
+assert(r4_match_stats("aaadddd","(d*)"));
+
+assert(r4_match_stats("aaa\"dddd\" ","\"(d*)\"\\s*"));
+
+
     assert(r4_match_stats("NL18RABO0322309700",
                           "(\\w{2})(\\d{2})(\\w{4}\\d)(\\d{10})"));
-    
 
-    unsigned int times = 1000;
+   // exit(0);
+    unsigned int times = 1;
     bench_all(times);
 
-    RBENCH(1, {
-        assert(r4_match_stats("#define DEFINETEST 1\n",
-                              "#define\\s+\\w[\\d\\w_]+\\s+[\\w\\d_]\\s*"));
-        assert(r4_match_stats("#define DEFINETEST 1\n",
-                              "#define\\s+\\w[\\d\\w_]+\\s+[\\w\\d_]\\s*"));
+    RBENCH(1, { 
+        assert(r4_match_stats("#define DEFINETEST 1",
+                              "#define\\s(+[\\w\\d_]+)\\s+[\\w\\d_]+"));
+    //    assert(r4_match_stats("#define DEFINETEST 1\n",
+      //s                        "#define\\s+\\w[\\d\\w_]+\\s+[\\w\\d_]\\s*"));
+        
+        assert(r4_match_stats("aa","aaaa"));
         assert(r4_match_stats("ponyyy", "^p+o.*yyy$$$$"));
         assert(!r4_match_stats("ponyyy", "p%+o.*yyy$$$$"));
         assert(!r4_match_stats("ponyyyd", "^p+o.*yyz$$$$"));
@@ -137,17 +160,6 @@ int main() {
         assert(
             r4_match_stats("NL18RABO0", "(\\w\\w)(\\d\\d)(\\w\\w\\w\\w\\d)$"));
         assert(r4_match_stats("q", "\\q$"));
-        r4_t *r =
-            r4("NL//18 - RABO0/322309700",
-               "(\\w{2})[\\s/-]*(\\d{2})[\\s/-]*(\\w{4}\\d)[\\s/-]*(\\d+)$");
-        assert(r);
-        
-        /*assert(r->match_count ==3);
-        assert(!strcmp(r->matches[0], "NL"));
-        assert(!strcmp(r->matches[1], "18"));
-        assert(!strcmp(r->matches[2], "RABO0"));
-        assert(!strcmp(r->matches[3], "322309700"));*/
-        r4_free(r);
         assert(r4_match_stats("ab123", "[a-z0-9]+$"));
         assert(r4_match_stats("ppppony", "p*pppony"));
         assert(r4_match_stats("aa", "a{2}$"));
@@ -175,6 +187,12 @@ int main() {
         r4_enable_debug();
         
         assert(r4_match_stats("123", "(.*)(.*)(.*)"));
+
+
+        assert(r4_match_stats("#include \"test.c\"", "#include\\s+\"(.*)\""));
+        assert(r4_match_stats("#define TEST_JE VALUE","#define\\s+([\\w_\\d]+)\\s+([\\w_\\d]+)"));
+        //
+
     });
 
     return 0;
