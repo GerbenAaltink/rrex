@@ -10,21 +10,40 @@
 #define R4_DEBUG_a
 
 #ifdef R4_DEBUG
-#define DEBUG_VALIDATE_FUNCTION                                                \
-    printf("DEBUG: %s v(%d) <%s> \"%s\"\n", __func__, r4->valid, r4->expr,     \
-           r4->str);
+#define _R4_DEBUG 1
 #else
-#define DEBUG_VALIDATE_FUNCTION
+#define _R4_DEBUG 0
 #endif
 
+static char *_format_function_name(char *name) {
+    name += 12;
+    if (strlen(name) == 0) {
+        return " -";
+    }
+    return name;
+}
+
+#define DEBUG_VALIDATE_FUNCTION                                                \
+    \  
+    if (_r4_debug || r4->debug)                                                \
+        printf("DEBUG: %s %s <%s> \"%s\"\n", _format_function_name(__func__),  \
+               r4->valid ? "valid" : "INVALID", r4->expr, r4->str);
+
 struct r4_t;
+
+static int _r4_debug = 0;
+
+void r4_enable_debug() { _r4_debug = true; }
+void r4_disable_debug() { _r4_debug = false; }
 
 typedef bool (*r4_function)(struct r4_t *);
 
 typedef struct r4_t {
+    bool debug;
     bool valid;
     bool in_block;
     bool in_range;
+    unsigned int in_group;
     unsigned int match_count;
     unsigned int validation_count;
     bool (*functions[254])(struct r4_t *);
@@ -274,7 +293,6 @@ static bool r4_isrange(char *s) {
 
 static bool r4_validate_block_close(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
-    r4->in_block = false;
     return r4->valid;
 }
 static bool r4_validate_block_open(r4_t *r4) {
@@ -325,6 +343,7 @@ static bool r4_validate_block_open(r4_t *r4) {
          }*/
     }
     char *expr_end = strchr(r4->expr, ']');
+
     r4->expr = expr_end ? expr_end : r4->expr;
     r4->in_block = false;
     r4->valid = expr_end && (!reversed ? valid_once : !valid_once);
@@ -441,15 +460,14 @@ static bool r4_validate_range(r4_t *r4) {
 
 static bool r4_validate_group_close(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
-    r4->in_block = false;
-    r4->in_range = false;
     return r4->valid;
 }
 
 static bool r4_validate_group_open(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     r4->expr++;
-
+    bool save_match = r4->in_group == 0;
+    r4->in_group++;
     char *str_extract_start = r4->str;
     bool valid = r4_validate(r4);
 
@@ -457,19 +475,25 @@ static bool r4_validate_group_open(r4_t *r4) {
         // this is a valid case if not everything between () matches
         return false;
     }
-    char *str_extract_end = r4->str;
-    unsigned int extracted_length = str_extract_end - str_extract_start;
-    char *str_extracted = (char *)calloc(sizeof(char), extracted_length + 1);
-    strncpy(str_extracted, str_extract_start, extracted_length);
-    r4_match_add(r4, str_extracted);
+    if (save_match) {
+        char *str_extract_end = r4->str;
+        unsigned int extracted_length = str_extract_end - str_extract_start;
+        char *str_extracted =
+            (char *)calloc(sizeof(char), extracted_length + 1);
+        strncpy(str_extracted, str_extract_start, extracted_length);
+        r4_match_add(r4, str_extracted);
+    }
     r4->expr++;
+    r4->in_group--;
     return r4_validate(r4);
 }
 
 static bool r4_validate_slash(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     // The handling code for handling slashes is implemented in r4_validate
-    return r4_validate(r4);
+    r4->expr++;
+    r4_function f = r4->slash_functions[(int)*r4->expr];
+    return f(r4);
 }
 
 static void r4_match_add(r4_t *r4, char *extracted) {
@@ -484,6 +508,7 @@ void r4_init(r4_t *r4) {
         r4->functions[i] = r4_validate_literal;
         r4->slash_functions[i] = r4_validate_literal;
     }
+    r4->debug = _R4_DEBUG;
     r4->valid = true;
     r4->validation_count = 0;
     r4->match_count = 0;
@@ -550,14 +575,7 @@ static bool r4_validate(r4_t *r4) {
             return false;
         }
     }
-    r4_function f;
-    if (c_val == '\\') {
-        r4->expr++;
-        c_val = *r4->expr;
-        f = r4->slash_functions[(int)c_val];
-    } else {
-        f = r4->functions[(int)c_val];
-    }
+    r4_function f = r4->functions[(int)c_val];
     r4->valid = f(r4);
     return r4->valid;
 }
@@ -589,6 +607,7 @@ r4_t *r4(const char *str, const char *expr) {
     r->str_previous = r->_str;
     r->expr_previous = r->expr;
     r->in_block = false;
+    r->in_group = 0;
     r->in_range = false;
     r4_search(r);
     return r;

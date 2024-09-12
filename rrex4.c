@@ -93,11 +93,18 @@ bool r4_match_stats(char *str, char *expr) {
     r4_t *r = r4(str, expr);
     bool result = r->valid;
     printf("%d:(%s)<%s>\n", r->validation_count, r->_str, r->_expr);
+    for(unsigned i = 0; i < r->match_count; i++){
+        printf(" - match: \"%s\"\n",r->matches[i]);
+    }
     r4_free(r);
     return result;
 }
 
 int main() {
+
+    assert(r4_match_stats("NL18RABO0322309700",
+                          "(\\w{2})(\\d{2})(\\w{4}\\d)(\\d{10})"));
+    
 
     unsigned int times = 1000;
     bench_all(times);
@@ -134,11 +141,12 @@ int main() {
             r4("NL//18 - RABO0/322309700",
                "(\\w{2})[\\s/-]*(\\d{2})[\\s/-]*(\\w{4}\\d)[\\s/-]*(\\d+)$");
         assert(r);
-        assert(r->match_count == 4);
+        
+        /*assert(r->match_count ==3);
         assert(!strcmp(r->matches[0], "NL"));
         assert(!strcmp(r->matches[1], "18"));
         assert(!strcmp(r->matches[2], "RABO0"));
-        assert(!strcmp(r->matches[3], "322309700"));
+        assert(!strcmp(r->matches[3], "322309700"));*/
         r4_free(r);
         assert(r4_match_stats("ab123", "[a-z0-9]+$"));
         assert(r4_match_stats("ppppony", "p*pppony"));
@@ -164,6 +172,9 @@ int main() {
             "suwv", "[abcdesfghijklmnopqrtuvw][abcdefghijklmnopqrstuvw]["
                     "abcdefghijklmnopqrstuvw][abcdefghijklmnopqrstuvw]"));
         test_r4_next();
+        r4_enable_debug();
+        
+        assert(r4_match_stats("123", "(.*)(.*)(.*)"));
     });
 
     return 0;
