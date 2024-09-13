@@ -1,4 +1,4 @@
-#define R4_DEBUGAA
+#define R4_DEBUG_a
 
 #include "rrex4.h"
 #include <regex.h>
@@ -89,16 +89,15 @@ void bench_all(unsigned int times) {
     assert(bench(times, "abc", "def|a?b?c|def"));
     assert(bench(times, "NL18RABO0322309700",
                  "([A-Z]{2})([0-9]{2})([A-Z]{4}[0-9])([0-9]+)$"));
-    assert(bench(times, "a 1 b 2 c 3 d 4 ","([A-Z0-9 ]+)"));
-    
+    assert(bench(times, "a 1 b 2 c 3 d 4 ", "([A-Z0-9 ]+)"));
 }
 
 bool r4_match_stats(char *str, char *expr) {
     r4_t *r = r4(str, expr);
     bool result = r->valid;
     printf("%d:(%s)<%s>\n", r->validation_count, r->_str, r->_expr);
-    for(unsigned i = 0; i < r->match_count; i++){
-        printf(" - match: \"%s\"\n",r->matches[i]);
+    for (unsigned i = 0; i < r->match_count; i++) {
+        printf(" - match: \"%s\"\n", r->matches[i]);
     }
     r4_free(r);
     return result;
@@ -106,37 +105,62 @@ bool r4_match_stats(char *str, char *expr) {
 
 int main() {
 
-    assert(r4_match_stats("aaadddd","(a+)(d+)$"));
-assert(r4_match_stats("aaa","(a+)$"));
+    // Group testing
+    assert(r4_match_stats("aaadddd", "(a+)(d+)$"));
+    assert(r4_match_stats("aaa", "(a+)$"));
+    assert(r4_match_stats("aaadddd", "(d+)$"));
+    assert(r4_match_stats("aaadddd", "(d+)"));
+    assert(r4_match_stats("aaa\"dddd\"", "\"(d+)\""));
+    assert(r4_match_stats("aaadddd", "(a*)(d+)$"));
+    assert(r4_match_stats("aaa", "(a*)$"));
+    assert(r4_match_stats("aaadddd", "(d*)$"));
+    assert(r4_match_stats("aaadddd", "(d*)"));
+    assert(r4_match_stats("aaa\"dddd\" ", "\"(d*)\"\\s*"));
 
-assert(r4_match_stats("aaadddd","(d+)$"));
-assert(r4_match_stats("aaadddd","(d+)"));
+    // Boundaries
+    assert(r4_match_stats("a", "\\b"));
+    assert(r4_match_stats("a", "\\ba$"));
+    assert(r4_match_stats("a", "^\\ba$"));
+    assert(r4_match_stats("aa", "\\b"));
+    assert(!r4_match_stats("aa", "\\b$"));
+    assert(r4_match_stats("a", "\\B"));
+    assert(r4_match_stats("a", "\\Ba$"));
+    assert(r4_match_stats("a", "^\\Ba$"));
+    assert(r4_match_stats("aa", "\\B"));
+    assert(!r4_match_stats("aa", "^\\B"));
 
-assert(r4_match_stats("aaa\"dddd\"","\"(d+)\""));
+    // Optional
+    assert(!r4_match_stats("a", "?"));
+    assert(r4_match_stats("a", "a?"));
+    assert(r4_match_stats("a", "b?"));
+    assert(r4_match_stats("a", "^b?"));
+    assert(r4_match_stats("a", "a?$"));
+    assert(!r4_match_stats("a", "b?$"));
+    assert(r4_match_stats("a", "[def]?a$"));
 
-    assert(r4_match_stats("aaadddd","(a*)(d+)$"));
-assert(r4_match_stats("aaa","(a*)$"));
+    // Next
+    test_r4_next();
 
-assert(r4_match_stats("aaadddd","(d*)$"));
-assert(r4_match_stats("aaadddd","(d*)"));
-
-assert(r4_match_stats("aaa\"dddd\" ","\"(d*)\"\\s*"));
-
+    char *c_function_regex =
+        "(\\w[\\w\\d]*[\\s\\*]*)\\s*\\w[\\w\\d]*\\s*\\((.*)\\)\\s*\\{";
+    r4_match_stats("int **main() {}", c_function_regex);
+    r4_match_stats("int main(int argc, char *argv[],(void *)aaa) {}",
+                   c_function_regex);
 
     assert(r4_match_stats("NL18RABO0322309700",
                           "(\\w{2})(\\d{2})(\\w{4}\\d)(\\d{10})"));
 
-   // exit(0);
+    // exit(0);
     unsigned int times = 1;
     bench_all(times);
 
-    RBENCH(1, { 
+    RBENCH(1, {
         assert(r4_match_stats("#define DEFINETEST 1",
                               "#define\\s(+[\\w\\d_]+)\\s+[\\w\\d_]+"));
-    //    assert(r4_match_stats("#define DEFINETEST 1\n",
-      //s                        "#define\\s+\\w[\\d\\w_]+\\s+[\\w\\d_]\\s*"));
-        
-        assert(r4_match_stats("aa","aaaa"));
+        //    assert(r4_match_stats("#define DEFINETEST 1\n",
+        // s "#define\\s+\\w[\\d\\w_]+\\s+[\\w\\d_]\\s*"));
+
+        assert(!r4_match_stats("aa", "aaaa"));
         assert(r4_match_stats("ponyyy", "^p+o.*yyy$$$$"));
         assert(!r4_match_stats("ponyyy", "p%+o.*yyy$$$$"));
         assert(!r4_match_stats("ponyyyd", "^p+o.*yyz$$$$"));
@@ -183,16 +207,13 @@ assert(r4_match_stats("aaa\"dddd\" ","\"(d*)\"\\s*"));
         assert(r4_match_stats(
             "suwv", "[abcdesfghijklmnopqrtuvw][abcdefghijklmnopqrstuvw]["
                     "abcdefghijklmnopqrstuvw][abcdefghijklmnopqrstuvw]"));
-        test_r4_next();
-        r4_enable_debug();
-        
+
         assert(r4_match_stats("123", "(.*)(.*)(.*)"));
 
-
         assert(r4_match_stats("#include \"test.c\"", "#include\\s+\"(.*)\""));
-        assert(r4_match_stats("#define TEST_JE VALUE","#define\\s+([\\w_\\d]+)\\s+([\\w_\\d]+)"));
+        assert(r4_match_stats("#define TEST_JE VALUE",
+                              "#define\\s+([\\w_\\d]+)\\s+([\\w_\\d]+)"));
         //
-
     });
 
     return 0;
