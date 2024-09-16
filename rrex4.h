@@ -20,7 +20,9 @@ static char *_format_function_name(const char *name) {
     result[0] = 0;
 
     char *new_name = (char *)name;
-    new_name += 12;
+    new_name += 11;
+    if(new_name[0] == '_')
+        new_name += 1;
     if (strlen(new_name) == 0) {
         return " -";
     }
