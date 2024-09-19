@@ -21,7 +21,7 @@ static char *_format_function_name(const char *name) {
 
     char *new_name = (char *)name;
     new_name += 11;
-    if(new_name[0] == '_')
+    if (new_name[0] == '_')
         new_name += 1;
     if (strlen(new_name) == 0) {
         return " -";
@@ -236,44 +236,6 @@ static bool r4_validate_asterisk(r4_t *r4) {
     return r4_validate(r4);
 }
 
-static bool r4_validate_asterisk2(r4_t *r4) {
-    DEBUG_VALIDATE_FUNCTION
-    if (r4->str == r4->str_previous)
-        return false;
-    r4->expr++;
-    if (r4->valid == false) {
-        r4->valid = true;
-        return r4_validate(r4);
-    }
-    char *str_start = r4->str;
-    char *expr_left = r4->expr_previous;
-    char *expr_right = r4->expr;
-    char *return_expr = NULL;
-    if (*expr_right == ')') {
-        return_expr = expr_right;
-        expr_right++;
-    }
-    if (*expr_right) {
-        r4->expr = expr_right;
-        bool right_valid = r4_validate(r4);
-        if (right_valid) {
-            if (return_expr) {
-                r4->str = str_start;
-                r4->expr = return_expr;
-            }
-            return right_valid;
-        }
-    }
-    if (!*r4->str) {
-        return r4->valid;
-    }
-    r4->str = str_start;
-    r4->str_previous = str_start;
-    r4->expr = expr_left;
-    r4->valid = true;
-    return r4_validate(r4);
-}
-
 static bool r4_validate_pipe(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     r4->expr++;
@@ -409,13 +371,7 @@ static bool r4_validate_block_open(r4_t *r4) {
             if (reversed)
                 r4->str--;
             break;
-        } /*else if (*r4->expr == *r4->str) {
-             if (!reversed)
-                 r4->str++;
-             valid_once = true;
-             r4->expr++;
-             break;
-         }*/
+        }
     }
     char *expr_end = strchr(r4->expr, ']');
 

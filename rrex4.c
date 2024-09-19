@@ -212,7 +212,7 @@ int main() {
 
         assert(r4_match_stats("#include \"test.c\"", "#include\\s+\"(.*)\""));
         assert(r4_match_stats("#define TEST_JE VALUE",
-                              "#define\\s+([\\w_\\d]+)\\s+([\\w_\\d]+)"));
+                              "#define\\s+([A-Za-z_0-9]+)\\s+([A-Za-z_0-9]+)"));
         //
     });
 
