@@ -123,8 +123,17 @@ char test_r4_bug_check_capture_overflow(){
     r4_free(r);
 }
 
+char test_r4_capture_dynamic_amount(){
+
+    r4_t * r = r4("testtesttest","(test)+");
+    assert(!strcmp(r->matches[0], "test"));
+    assert(!strcmp(r->matches[1], "test"));
+    assert(!strcmp(r->matches[2], "test"));
+
+}
+
 int main() {
-    r4_check_capture_overflow();
+    test_r4_capture_dynamic_amount();
     exit(0);
     // Group testing
     assert(r4_match_stats("aaadddd", "(a+)(d+)$"));
