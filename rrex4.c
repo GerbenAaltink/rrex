@@ -1,4 +1,4 @@
-#define R4_DEBUG_a
+#define R4_DEBUG
 
 #include "rrex4.h"
 #include <regex.h>
@@ -103,8 +103,29 @@ bool r4_match_stats(char *str, char *expr) {
     return result;
 }
 
-int main() {
+char test_r4_bug_check_capture_overflow(){
+    // This is a former bug in r4.
 
+    // Case one
+    r4_t * r = r4("test","(test)+");
+    assert(r->match_count == 1);
+    r4_free(r);
+
+    // Case two
+    r = r4("tester","(t\\est\\e\\r)+");
+    assert(r->match_count == 1);
+    printf("%s\n", r->matches[0]);
+    r4_free(r);
+
+    // Case three
+    r = r4("test","(t\\est\\e\\r)+");
+    assert(r->match_count == 0);
+    r4_free(r);
+}
+
+int main() {
+    r4_check_capture_overflow();
+    exit(0);
     // Group testing
     assert(r4_match_stats("aaadddd", "(a+)(d+)$"));
     assert(r4_match_stats("aaa", "(a+)$"));
@@ -138,8 +159,11 @@ int main() {
     assert(!r4_match_stats("a", "b?$"));
     assert(r4_match_stats("a", "[def]?a$"));
 
-    // Next
+    // Next tests
     test_r4_next();
+
+    // Check if former known bugs are still fixed
+    test_r4_bug_check_capture_overflow();
 
     char *c_function_regex =
         "(\\w[\\w\\d]*[\\s\\*]*)\\s*\\w[\\w\\d]*\\s*\\((.*)\\)\\s*\\{";
@@ -214,6 +238,7 @@ int main() {
         assert(r4_match_stats("#define TEST_JE VALUE",
                               "#define\\s+([A-Za-z_0-9]+)\\s+([A-Za-z_0-9]+)"));
         //
+        
     });
 
     return 0;

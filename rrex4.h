@@ -496,6 +496,7 @@ static bool r4_validate_group_close(r4_t *r4) {
 
 static bool r4_validate_group_open(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
+    char *expr_previous = r4->expr_previous;
     r4->expr++;
     bool save_match = r4->in_group == 0;
     r4->in_group++;
@@ -516,8 +517,10 @@ static bool r4_validate_group_open(r4_t *r4) {
         strncpy(str_extracted, str_extract_start, extracted_length);
         r4_match_add(r4, str_extracted);
     }
+    assert(*r4->expr == ')');
     r4->expr++;
     r4->in_group--;
+    r4->expr_previous = expr_previous;
     return r4_validate(r4);
 }
 
@@ -526,6 +529,7 @@ static bool r4_validate_slash(r4_t *r4) {
     // The handling code for handling slashes is implemented in r4_validate
     r4->expr++;
     r4_function f = v4_function_map_slash[(int)*r4->expr];
+    
     return f(r4);
 }
 
