@@ -133,8 +133,8 @@ char test_r4_capture_dynamic_amount(){
 }
 
 int main() {
-    test_r4_capture_dynamic_amount();
-    exit(0);
+    //test_r4_capture_dynamic_amount();
+    //exit(0);
     // Group testing
     assert(r4_match_stats("aaadddd", "(a+)(d+)$"));
     assert(r4_match_stats("aaa", "(a+)$"));
