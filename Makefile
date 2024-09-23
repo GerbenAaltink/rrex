@@ -62,6 +62,23 @@ rrex4: rrex4.c rrex4.h
 run_rrex4:
 	./rrex4 
 
+coverage_rrex4:
+	@rm -f *.gcda   2>/dev/null
+	@rm -f *.gcno   2>/dev/null
+	@rm -f rrex4.coverage.info   2>/dev/null
+	gcc -pg -fprofile-arcs -ftest-coverage -g -o rrex4_coverage.o rrex4.c
+	./rrex4_coverage.o test
+	lcov --capture --directory . --output-file rrex4.coverage.info
+	genhtml rrex4.coverage.info --output-directory rrex4.coverage
+	@rm -f *.gcda   2>/dev/null
+	@rm -f *.gcno   2>/dev/null
+	@rm -f rrex4.coverage.info   2>/dev/null
+	@rm -f rrex4_coverage.o
+	@rm -f gmon.out
+	google-chrome rrex4.coverage/index.html
+
+
+
 
 build_and_run_re: build_re run_re
 

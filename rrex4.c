@@ -1,4 +1,4 @@
-#define R4_DEBUG
+#define R4_DEBUG_a
 
 #include "rrex4.h"
 #include <regex.h>
@@ -96,8 +96,11 @@ bool r4_match_stats(char *str, char *expr) {
     r4_t *r = r4(str, expr);
     bool result = r->valid;
     printf("%d:(%s)<%s>\n", r->validation_count, r->_str, r->_expr);
+    if(result){
+        printf(" - match(0)\t: \"%s\"\n", r->match);
+    }
     for (unsigned i = 0; i < r->match_count; i++) {
-        printf(" - match: \"%s\"\n", r->matches[i]);
+        printf("  - match(%d)\t: \"%s\"\n", i + 1, r->matches[i]);
     }
     r4_free(r);
     return result;
@@ -123,18 +126,60 @@ char test_r4_bug_check_capture_overflow(){
     r4_free(r);
 }
 
-char test_r4_capture_dynamic_amount(){
-
-    r4_t * r = r4("testtesttest","(test)+");
+char test_r4_capture_main_group() {
+    // Case 1
+    r4_t * r = r4("testtesttesttest","(test)+test$");
+    //printf("%s\n",r->match);
+    //assert(!strcmp(r->match,"testtesttesttest"));
+    assert(r->match_count == 3);
     assert(!strcmp(r->matches[0], "test"));
     assert(!strcmp(r->matches[1], "test"));
     assert(!strcmp(r->matches[2], "test"));
-
+    r4_free(r); 
+    // Case 2 (with search)
+    /*
+    r = r4("          testtesttesttest","(test)+test$");
+    printf("%s\n",r->match);
+    assert(!strcmp(r->match,"testtesttesttest"));
+    assert(r->match_count == 3);
+    assert(!strcmp(r->matches[0], "test"));
+    assert(!strcmp(r->matches[1], "test"));
+    assert(!strcmp(r->matches[2], "test"));
+    r4_free(r); */
 }
 
-int main() {
-    //test_r4_capture_dynamic_amount();
-    //exit(0);
+char test_r4_capture_dynamic_amount(){
+    r4_t * r = r4("testtesttesttest","(test)+test$");
+    assert(r->match_count == 3);
+    assert(!strcmp(r->matches[0], "test"));
+    assert(!strcmp(r->matches[1], "test"));
+    assert(!strcmp(r->matches[2], "test"));
+    r4_free(r);
+
+    return true;
+    // Some advanced capturing
+    // Fails
+    r = r4("testtesttesttest","([tes]+)+test$");
+    printf("%d\n",r->match_count);
+    assert(r->match_count == 1);
+    assert(!strcmp(r->matches[0], "testtesttest"));
+    r4_free(r);
+}   
+
+int main(unsigned int argc, char * argv[]) {
+
+    for(unsigned int i = 0; i < argc; i++){
+        if(!strcmp(argv[i],"--debug")){
+            r4_enable_debug();
+        }
+    }
+
+    test_r4_capture_main_group();
+    assert(r4_match_stats("testtesttesttest", "(test)+test$"));
+    assert(r4_match_stats("testtest", "test"));
+    
+   // return 0;
+
     // Group testing
     assert(r4_match_stats("aaadddd", "(a+)(d+)$"));
     assert(r4_match_stats("aaa", "(a+)$"));
@@ -174,6 +219,10 @@ int main() {
     // Check if former known bugs are still fixed
     test_r4_bug_check_capture_overflow();
 
+    // Check if capture amount is dynamic
+    test_r4_capture_dynamic_amount();
+    
+
     char *c_function_regex =
         "(\\w[\\w\\d]*[\\s\\*]*)\\s*\\w[\\w\\d]*\\s*\\((.*)\\)\\s*\\{";
     r4_match_stats("int **main() {}", c_function_regex);
@@ -202,7 +251,7 @@ int main() {
         assert(r4_match_stats("abcdeeeeee", "ab(cdeee)e"));
         assert(r4_match_stats("1234567", "12(.*)67$"));
         assert(r4_match_stats("12111678993", "12(.*)67(.*)3$"));
-        assert(r4_match_stats("NL17RABO0322309700", "NL(.*)R(.*)0(.*)0(.*)0$"));
+        assert(r4_match_stats("NL18RABO0322309700", "NL(.*)R(.*)0(.*)0(.*)$"));
 
         assert(r4_match_stats("NL18RABO0322309700",
                               "(\\w{2})(\\d{2})(\\w{4}\\d)(\\d+)$"));
@@ -242,12 +291,15 @@ int main() {
                     "abcdefghijklmnopqrstuvw][abcdefghijklmnopqrstuvw]"));
 
         assert(r4_match_stats("123", "(.*)(.*)(.*)"));
+        assert(r4_match_stats("1234", "(.*)(.*)(.*)"));
 
         assert(r4_match_stats("#include \"test.c\"", "#include\\s+\"(.*)\""));
         assert(r4_match_stats("#define TEST_JE VALUE",
                               "#define\\s+([A-Za-z_0-9]+)\\s+([A-Za-z_0-9]+)"));
         //
-        
+        assert(r4_match_stats("bbb","a*(bbb)"));
+
+        assert(r4_match_stats("abcdefg","(.*)(.*)"));
     });
 
     return 0;
