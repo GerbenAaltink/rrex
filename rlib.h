@@ -104,7 +104,6 @@ static char *_format_function_name(const char *name) {
 }
 
 #define DEBUG_VALIDATE_FUNCTION                                                \
-    \  
     if (_r4_debug || r4->debug)                                                \
         printf("DEBUG: %s %s <%s> \"%s\"\n", _format_function_name(__func__),  \
                r4->valid ? "valid" : "INVALID", r4->expr, r4->str);
@@ -622,7 +621,7 @@ static void r4_match_add(r4_t *r4, char *extracted) {
     r4->match_count++;
 }
 
-static void r4_validate_word_boundary_start(r4_t *r4) {
+static bool r4_validate_word_boundary_start(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     r4->expr++;
     if (!r4->valid) {
@@ -630,13 +629,12 @@ static void r4_validate_word_boundary_start(r4_t *r4) {
     }
     r4->valid =
         isalpha(*r4->str) && (r4->str == r4->_str || !isalpha(*(r4->str - 1)));
-    printf("<<%d>>\n", r4->valid);
     if (r4->in_range || r4->in_block) {
         return r4->valid;
     }
     return r4_validate(r4);
 }
-static void r4_validate_word_boundary_end(r4_t *r4) {
+static bool r4_validate_word_boundary_end(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     r4->expr++;
     if (!r4->valid) {
