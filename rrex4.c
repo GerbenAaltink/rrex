@@ -105,7 +105,7 @@ bool r4_match_stats(char *str, char *expr) {
     return result;
 }
 
-char test_r4_bug_check_capture_overflow(){
+void test_r4_bug_check_capture_overflow(){
     // This is a former bug in r4.
 
     // Case one
@@ -125,7 +125,7 @@ char test_r4_bug_check_capture_overflow(){
     r4_free(r);
 }
 
-char test_r4_capture_main_group() {
+void test_r4_capture_main_group() {
     // Case 1
     r4_t * r = r4("testtesttesttest","(test)+test$");
     //printf("%s\n",r->match);
@@ -165,9 +165,9 @@ char test_r4_capture_dynamic_amount(){
     r4_free(r);
 }   
 
-int main(unsigned int argc, char * argv[]) {
+int main(int argc, char * argv[]) {
 
-    for(unsigned int i = 0; i < argc; i++){
+    for(int i = 0; i < argc; i++){
         if(!strcmp(argv[i],"--debug")){
             r4_enable_debug();
         }
