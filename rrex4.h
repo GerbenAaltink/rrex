@@ -519,8 +519,8 @@ static bool r4_validate_group_open(r4_t *r4) {
     }
     if (save_match) {
         char *str_extract_end = r4->str;
-        unsigned int extracted_length =
-            strlen(str_extract_start) - strlen(str_extract_end);
+        unsigned int extracted_length = str_extract_end - str_extract_start;
+            //strlen(str_extract_start) - strlen(str_extract_end);
         char *str_extracted =
             (char *)calloc(sizeof(char), extracted_length + 1);
         strncpy(str_extracted, str_extract_start, extracted_length);
@@ -672,14 +672,12 @@ static bool r4_validate(r4_t *r4) {
     char c_val = *r4->expr;
     if (c_val == 0)
     {
-        printf("HIEROOO\n");
         return r4->valid;
     }
     if (!r4_looks_behind(c_val)) {
         r4->expr_previous = r4->expr;
     } else if (r4->expr == r4->_expr) {
         // Regex may not start with a look behind ufnction
-        printf("HIEROO\n");
         return false;
     }
 
