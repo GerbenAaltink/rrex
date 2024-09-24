@@ -175,8 +175,9 @@ int main(int argc, char *argv[]) {
 
     r4_enable_debug();
     //Has to be fixed
-    //r4_match_stats("retoor@retoor.net", "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    //r4_match_stats("r4@r4.net", "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     //exit(0);
+    
 
     test_r4_capture_main_group();
     assert(r4_match_stats("testtesttesttest", "(test)+test$"));
@@ -255,6 +256,9 @@ int main(int argc, char *argv[]) {
     assert(!r4_match_stats("a1", "a{2}"));
     assert(r4_match_stats("ab", "a{1,2}"));
     assert(r4_match_stats("aa", "a{2,}"));
+
+    // Group (Custom function set)
+    r4_match_stats("*?+$^.|\\[{()}]@ ","[*?+$^.|\\\\[{()}]]+$@\\s");
 
     // Miscellaneous tests
     bool debug_mode_original = _r4_debug;
