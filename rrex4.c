@@ -2,8 +2,7 @@
 
 #include "rrex4.h"
 #include <regex.h>
-#include <rlib.h>
-#include <search.h>
+#include "rlib.h"
 
 bool bench_r4(unsigned int times, char *str, char *expr) {
     RBENCH(times, {

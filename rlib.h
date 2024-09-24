@@ -1,4 +1,4 @@
-// RETOOR - Sep  3 2024
+// RETOOR - Sep 24 2024
 // MIT License
 // ===========
 
@@ -24,6 +24,880 @@
 #ifndef RLIB_H
 #define RLIB_H
 // BEGIN OF RLIB
+#ifndef RSTRING_LIST_H
+#define RSTRING_LIST_H
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct rstring_list_t {
+    unsigned int size;
+    unsigned int count;
+    char **strings;
+} rstring_list_t;
+
+rstring_list_t *rstring_list_new() {
+    rstring_list_t *rsl = (rstring_list_t *)malloc(sizeof(rstring_list_t));
+    memset(rsl, 0, sizeof(rstring_list_t));
+    return rsl;
+}
+
+void rstring_list_free(rstring_list_t *rsl) {
+    for (unsigned int i = 0; i < rsl->size; i++) {
+        free(rsl->strings[i]);
+    }
+    free(rsl);
+    rsl = NULL;
+}
+
+void rstring_list_add(rstring_list_t *rsl, char *str) {
+    if (rsl->count == rsl->size) {
+        rsl->size++;
+        rsl->strings = realloc(rsl->strings, sizeof(char *) * rsl->size);
+    }
+    rsl->strings[rsl->count] = (char *)malloc(strlen(str) + 1);
+    strcpy(rsl->strings[rsl->count], str);
+    rsl->count++;
+}
+bool rstring_list_contains(rstring_list_t *rsl, char *str) {
+    for (unsigned int i = 0; i < rsl->count; i++) {
+        if (!strcmp(rsl->strings[i], str))
+            return true;
+    }
+    return false;
+}
+
+#endif
+#ifndef RAUTOCOMPLETE_H
+#define RAUTOCOMPLETE_H
+#define R4_DEBUG
+#ifndef RREX4_H
+#define RREX4_H
+#include <assert.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define R4_DEBUG_a
+
+#ifdef R4_DEBUG
+static int _r4_debug = 1;
+#else
+static int _r4_debug = 0;
+#endif
+
+static char *_format_function_name(const char *name) {
+    static char result[100];
+    result[0] = 0;
+
+    char *new_name = (char *)name;
+    new_name += 11;
+    if (new_name[0] == '_')
+        new_name += 1;
+    if (strlen(new_name) == 0) {
+        return " -";
+    }
+    strcpy(result, new_name);
+    return result;
+}
+
+#define DEBUG_VALIDATE_FUNCTION                                                \
+    \  
+    if (_r4_debug || r4->debug)                                                \
+        printf("DEBUG: %s %s <%s> \"%s\"\n", _format_function_name(__func__),  \
+               r4->valid ? "valid" : "INVALID", r4->expr, r4->str);
+
+struct r4_t;
+
+void r4_enable_debug() { _r4_debug = true; }
+void r4_disable_debug() { _r4_debug = false; }
+
+typedef bool (*r4_function)(struct r4_t *);
+
+typedef struct r4_t {
+    bool debug;
+    bool valid;
+    bool in_block;
+    bool in_range;
+    unsigned int backtracking;
+    unsigned int loop_count;
+    unsigned int in_group;
+    unsigned int match_count;
+    unsigned int validation_count;
+    unsigned int start;
+    unsigned int end;
+    unsigned int length;
+    bool (*functions[254])(struct r4_t *);
+    bool (*slash_functions[254])(struct r4_t *);
+    char *_str;
+    char *_expr;
+    char *match;
+    char *str;
+    char *expr;
+    char *str_previous;
+    char *expr_previous;
+    char **matches;
+} r4_t;
+
+static bool v4_initiated = false;
+typedef bool (*v4_function_map)(r4_t *);
+v4_function_map v4_function_map_global[256];
+v4_function_map v4_function_map_slash[256];
+v4_function_map v4_function_map_block[256];
+
+static void r4_free_matches(r4_t *r) {
+    if (!r)
+        return;
+    if (r->match) {
+        free(r->match);
+        r->match = NULL;
+    }
+    if (!r->match_count) {
+        return;
+    }
+    for (unsigned i = 0; i < r->match_count; i++) {
+        free(r->matches[i]);
+    }
+    free(r->matches);
+    r->match_count = 0;
+    r->matches = NULL;
+}
+
+static void r4_free(r4_t *r) {
+    if (!r)
+        return;
+    r4_free_matches(r);
+    free(r);
+}
+
+static bool r4_backtrack(r4_t *r4);
+static bool r4_validate(r4_t *r4);
+static void r4_match_add(r4_t *r4, char *extracted);
+
+static bool r4_validate_literal(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (!r4->valid)
+        return false;
+    if (*r4->str != *r4->expr) {
+        r4->valid = false;
+    } else {
+        r4->str++;
+    }
+    r4->expr++;
+    if (r4->in_range || r4->in_block) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+static bool r4_validate_question_mark(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->valid = true;
+    r4->expr++;
+    return r4_validate(r4);
+}
+
+static bool r4_validate_plus(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->expr++;
+    if (r4->valid == false) {
+        return r4_validate(r4);
+    }
+    char *expr_left = r4->expr_previous;
+    char *expr_right = r4->expr;
+    char *str = r4->str;
+    char *return_expr = NULL;
+    if (*expr_right == ')') {
+        return_expr = expr_right;
+        expr_right++;
+    }
+    r4->in_block = true;
+    r4->expr = expr_left;
+    while (r4->valid) {
+        if (*expr_right) {
+            r4->expr = expr_right;
+            r4->in_block = false;
+            if (r4_backtrack(r4)) {
+
+                if (return_expr) {
+                    r4->str = str;
+                    r4->expr = return_expr;
+                }
+                return r4_validate(r4);
+            } else {
+                r4->in_block = true;
+            }
+        }
+        r4->valid = true;
+        r4->expr = expr_left;
+        r4->str = str;
+        r4_validate(r4);
+        str = r4->str;
+    }
+    r4->in_block = false;
+    r4->valid = true;
+    r4->expr = return_expr ? return_expr : expr_right;
+    return r4_validate(r4);
+}
+
+static bool r4_validate_dollar(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->expr++;
+    return *r4->str == 0;
+}
+
+static bool r4_validate_roof(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (r4->str != r4->_str) {
+        return false;
+    }
+    r4->expr++;
+    return r4_validate(r4);
+}
+
+static bool r4_validate_dot(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (*r4->str == 0) {
+        return false;
+    }
+    r4->expr++;
+    r4->valid = *r4->str != '\n';
+    r4->str++;
+
+    if (r4->in_range || r4->in_block) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+
+static bool r4_validate_asterisk(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->expr++;
+    if (r4->valid == false) {
+        r4->valid = true;
+        return r4->valid;
+        // return r4_validate(r4);
+    }
+    char *expr_left = r4->expr_previous;
+    char *expr_right = r4->expr;
+    char *str = r4->str;
+    char *return_expr = NULL;
+    if (*expr_right == ')') {
+        return_expr = expr_right;
+        expr_right++;
+    }
+    r4->in_block = true;
+    r4->expr = expr_left;
+    while (r4->valid) {
+        if (*expr_right) {
+            r4->expr = expr_right;
+            r4->in_block = false;
+            if (r4_backtrack(r4)) {
+
+                if (return_expr) {
+                    r4->str = str;
+                    r4->expr = return_expr;
+                }
+                return r4_validate(r4);
+            } else {
+                r4->in_block = true;
+            }
+        }
+        r4->valid = true;
+        r4->expr = expr_left;
+        r4->str = str;
+        r4_validate(r4);
+        str = r4->str;
+    }
+    r4->in_block = false;
+    r4->valid = true;
+    r4->expr = return_expr ? return_expr : expr_right;
+    return r4_validate(r4);
+}
+
+static bool r4_validate_pipe(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->expr++;
+    if (r4->valid == true) {
+        return true;
+    } else {
+        r4->valid = true;
+    }
+    return r4_validate(r4);
+}
+
+static bool r4_validate_digit(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (!isdigit(*r4->str)) {
+        r4->valid = false;
+    } else {
+        r4->str++;
+    }
+    r4->expr++;
+    if (r4->in_block) {
+        return r4->valid;
+    }
+    if (r4->in_range) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+static bool r4_validate_not_digit(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (isdigit(*r4->str)) {
+        r4->valid = false;
+    } else {
+        r4->str++;
+    }
+    r4->expr++;
+
+    if (r4->in_block) {
+        return r4->valid;
+    }
+
+    if (r4->in_range) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+static bool r4_validate_word(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (!isalpha(*r4->str)) {
+        r4->valid = false;
+    } else {
+        r4->str++;
+    }
+    r4->expr++;
+
+    if (r4->in_block) {
+        return r4->valid;
+    }
+
+    if (r4->in_range) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+static bool r4_validate_not_word(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (isalpha(*r4->str)) {
+        r4->valid = false;
+    } else {
+        r4->str++;
+    }
+    r4->expr++;
+
+    if (r4->in_block) {
+        return r4->valid;
+    }
+
+    if (r4->in_range) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+
+static bool r4_isrange(char *s) {
+    if (!isalnum(*s)) {
+        return false;
+    }
+    if (*(s + 1) != '-') {
+        return false;
+    }
+    return isalnum(*(s + 2));
+}
+
+static bool r4_validate_block_open(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    if (r4->valid == false) {
+        return false;
+    }
+    char *expr_self = r4->expr;
+    r4->expr++;
+    bool reversed = *r4->expr == '^';
+    if (reversed) {
+        r4->expr++;
+    }
+
+    bool valid_once = false;
+    r4->in_block = true;
+    while (*r4->expr != ']') {
+        r4->valid = true;
+        if (r4_isrange(r4->expr)) {
+            char s = *r4->expr;
+            char e = *(r4->expr + 2);
+            r4->expr += 2;
+            if (s > e) {
+                char tempc = s;
+                s = e;
+                e = tempc;
+            }
+            if (*r4->str >= s && *r4->str <= e) {
+                if (!reversed) {
+                    r4->str++;
+                }
+                valid_once = true;
+                break;
+            } else {
+                r4->expr++;
+            }
+        } else if (r4_validate(r4)) {
+            valid_once = true;
+            if (reversed)
+                r4->str--;
+            break;
+        }
+    }
+    char *expr_end = strchr(r4->expr, ']');
+
+    r4->expr = expr_end ? expr_end : r4->expr;
+    r4->in_block = false;
+    r4->valid = expr_end && (!reversed ? valid_once : !valid_once);
+    r4->expr++;
+    r4->expr_previous = expr_self;
+
+    if (r4->in_range) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+
+static bool r4_validate_whitespace(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->valid = strchr("\r\t \n", *r4->str) != NULL;
+    r4->expr++;
+    if (r4->valid) {
+        r4->str++;
+    }
+    if (r4->in_range || r4->in_block) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+static bool r4_validate_not_whitespace(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->valid = strchr("\r\t \n", *r4->str) == NULL;
+    r4->expr++;
+    if (r4->valid) {
+        r4->str++;
+    }
+    if (r4->in_range || r4->in_block) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+
+static bool r4_validate_range(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION;
+    if (r4->valid == false) {
+        r4->expr++;
+        return false;
+    }
+    char *previous = r4->expr_previous;
+    r4->in_range = true;
+    r4->expr++;
+    unsigned int start = 0;
+    while (isdigit(*r4->expr)) {
+        start = 10 * start;
+        start += *r4->expr - '0';
+        r4->expr++;
+    }
+    if (start != 0)
+        start--;
+
+    unsigned int end = 0;
+    bool variable_end_range = false;
+    if (*r4->expr == ',') {
+        r4->expr++;
+        if (!isdigit(*r4->expr)) {
+            variable_end_range = true;
+        }
+    }
+    while (isdigit(*r4->expr)) {
+        end = end * 10;
+        end += *r4->expr - '0';
+        r4->expr++;
+    }
+    r4->expr++;
+
+    bool valid = true;
+    char *expr_right = r4->expr;
+    for (unsigned int i = 0; i < start; i++) {
+        r4->expr = previous;
+        valid = r4_validate(r4);
+        if (!*r4->str)
+            break;
+        if (!valid) {
+            break;
+        }
+    }
+    r4->expr = expr_right;
+    r4->in_range = false;
+    if (!r4->valid)
+        return false;
+    return r4_validate(r4);
+
+    for (unsigned int i = start; i < end; i++) {
+        r4->expr = previous;
+        valid = r4_validate(r4);
+        if (!valid) {
+            break;
+        }
+    }
+
+    while (variable_end_range) {
+        r4->in_range = false;
+        valid = r4_validate(r4);
+        r4->in_range = true;
+        if (valid) {
+            break;
+        }
+        r4->in_range = true;
+        valid = r4_validate(r4);
+        r4->in_range = false;
+        if (!valid) {
+            break;
+        }
+    }
+    r4->valid = valid;
+
+    return r4_validate(r4);
+}
+
+static bool r4_validate_group_close(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    return r4->valid;
+}
+
+static bool r4_validate_group_open(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    char *expr_previous = r4->expr_previous;
+    r4->expr++;
+    bool save_match = r4->in_group == 0;
+    r4->in_group++;
+    char *str_extract_start = r4->str;
+    bool valid = r4_validate(r4);
+
+    if (!valid || *r4->expr != ')') {
+        // this is a valid case if not everything between () matches
+        r4->in_group--;
+        if (save_match == false) {
+            r4->valid = true;
+        }
+
+        // Not direct return? Not sure
+        return r4_validate(r4);
+    }
+    if (save_match) {
+        char *str_extract_end = r4->str;
+        unsigned int extracted_length = str_extract_end - str_extract_start;
+        // strlen(str_extract_start) - strlen(str_extract_end);
+        char *str_extracted =
+            (char *)calloc(sizeof(char), extracted_length + 1);
+        strncpy(str_extracted, str_extract_start, extracted_length);
+        r4_match_add(r4, str_extracted);
+    }
+    assert(*r4->expr == ')');
+    r4->expr++;
+    r4->in_group--;
+    r4->expr_previous = expr_previous;
+    return r4_validate(r4);
+}
+
+static bool r4_validate_slash(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    // The handling code for handling slashes is implemented in r4_validate
+    char *expr_previous = r4->expr_previous;
+    r4->expr++;
+    r4_function f = v4_function_map_slash[(int)*r4->expr];
+    r4->expr_previous = expr_previous;
+    return f(r4);
+}
+
+static void r4_match_add(r4_t *r4, char *extracted) {
+    r4->matches =
+        (char **)realloc(r4->matches, (r4->match_count + 1) * sizeof(char *));
+    r4->matches[r4->match_count] = extracted;
+    r4->match_count++;
+}
+
+static void r4_validate_word_boundary_start(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->expr++;
+    if (!r4->valid) {
+        return r4->valid;
+    }
+    r4->valid =
+        isalpha(*r4->str) && (r4->str == r4->_str || !isalpha(*(r4->str - 1)));
+    printf("<<%d>>\n", r4->valid);
+    if (r4->in_range || r4->in_block) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+static void r4_validate_word_boundary_end(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->expr++;
+    if (!r4->valid) {
+        return r4->valid;
+    }
+    r4->valid =
+        isalpha(*r4->str) && (*(r4->str + 1) == 0 || !isalpha(*(r4->str + 1)));
+    if (r4->in_range || r4->in_block) {
+        return r4->valid;
+    }
+    return r4_validate(r4);
+}
+
+static void v4_init_function_maps() {
+    if (v4_initiated)
+        return;
+    v4_initiated = true;
+    for (__uint8_t i = 0; i < 255; i++) {
+        v4_function_map_global[i] = r4_validate_literal;
+        v4_function_map_slash[i] = r4_validate_literal;
+        v4_function_map_block[i] = r4_validate_literal;
+    }
+    v4_function_map_global['*'] = r4_validate_asterisk;
+    v4_function_map_global['?'] = r4_validate_question_mark;
+    v4_function_map_global['+'] = r4_validate_plus;
+    v4_function_map_global['$'] = r4_validate_dollar;
+    v4_function_map_global['^'] = r4_validate_roof;
+    v4_function_map_global['.'] = r4_validate_dot;
+    v4_function_map_global['|'] = r4_validate_pipe;
+    v4_function_map_global['\\'] = r4_validate_slash;
+    v4_function_map_global['['] = r4_validate_block_open;
+    v4_function_map_global['{'] = r4_validate_range;
+    v4_function_map_global['('] = r4_validate_group_open;
+    v4_function_map_global[')'] = r4_validate_group_close;
+    v4_function_map_slash['b'] = r4_validate_word_boundary_start;
+    v4_function_map_slash['B'] = r4_validate_word_boundary_end;
+    v4_function_map_slash['d'] = r4_validate_digit;
+    v4_function_map_slash['w'] = r4_validate_word;
+    v4_function_map_slash['D'] = r4_validate_not_digit;
+    v4_function_map_slash['W'] = r4_validate_not_word;
+    v4_function_map_slash['s'] = r4_validate_whitespace;
+    v4_function_map_slash['S'] = r4_validate_not_whitespace;
+    v4_function_map_block['\\'] = r4_validate_slash;
+
+    v4_function_map_block['{'] = r4_validate_range;
+}
+
+void r4_init(r4_t *r4) {
+    v4_init_function_maps();
+    if (r4 == NULL)
+        return;
+    r4->debug = _r4_debug;
+    r4->valid = true;
+    r4->validation_count = 0;
+    r4->match_count = 0;
+    r4->start = 0;
+    r4->end = 0;
+    r4->length = 0;
+    r4->matches = NULL;
+}
+
+static bool r4_looks_behind(char c) { return strchr("?*+{", c) != NULL; }
+
+r4_t *r4_new() {
+    r4_t *r4 = (r4_t *)malloc(sizeof(r4_t));
+
+    r4_init(r4);
+
+    return r4;
+}
+
+static bool r4_pipe_next(r4_t *r4) {
+    char *expr = r4->expr;
+    while (*expr) {
+        if (*expr == '|') {
+            r4->expr = expr + 1;
+            r4->valid = true;
+            return true;
+        }
+        expr++;
+    }
+    return false;
+}
+
+static bool r4_backtrack(r4_t *r4) {
+    if (_r4_debug)
+        printf("\033[36mDEBUG: backtrack start (%d)\n", r4->backtracking);
+    r4->backtracking++;
+    char *str = r4->str;
+    char *expr = r4->expr;
+    bool result = r4_validate(r4);
+    r4->backtracking--;
+    if (result == false) {
+        r4->expr = expr;
+        r4->str = str;
+    }
+    if (_r4_debug)
+        printf("DEBUG: backtrack end (%d) result: %d %s\n", r4->backtracking,
+               result, r4->backtracking == 0 ? "\033[0m" : "");
+    return result;
+}
+
+static bool r4_validate(r4_t *r4) {
+    DEBUG_VALIDATE_FUNCTION
+    r4->validation_count++;
+    char c_val = *r4->expr;
+    if (c_val == 0) {
+        return r4->valid;
+    }
+    if (!r4_looks_behind(c_val)) {
+        r4->expr_previous = r4->expr;
+    } else if (r4->expr == r4->_expr) {
+        // Regex may not start with a look behind ufnction
+        return false;
+    }
+
+    if (!r4->valid && !r4_looks_behind(*r4->expr)) {
+        if (!r4_pipe_next(r4)) {
+            return false;
+        }
+    }
+    r4_function f;
+    f = v4_function_map_global[(int)c_val];
+
+    r4->valid = f(r4);
+    return r4->valid;
+}
+
+char *r4_get_match(r4_t *r) {
+    char *match = (char *)malloc(r->length + 1);
+    strncpy(match, r->_str + r->start, r->length);
+    match[r->length] = 0;
+    return match;
+}
+
+static bool r4_search(r4_t *r) {
+    bool valid = true;
+    char *str_next = r->str;
+    while (*r->str) {
+        if (!(valid = r4_validate(r))) {
+            // Move next until we find a match
+            if (!r->backtracking) {
+                r->start++;
+            }
+            str_next++;
+            r->str = str_next;
+            r->expr = r->_expr;
+            r->valid = true;
+        } else {
+            /// HIGH DOUBT
+            if (!r->backtracking) {
+                // r->start = 0;
+            }
+            break;
+        }
+    }
+    r->valid = valid;
+    if (r->valid) {
+        r->end = strlen(r->_str) - strlen(r->str);
+        r->length = r->end - r->start;
+        r->match = r4_get_match(r);
+    }
+    return r->valid;
+}
+
+r4_t *r4(const char *str, const char *expr) {
+    r4_t *r = r4_new();
+    r->_str = (char *)str;
+    r->_expr = (char *)expr;
+    r->match = NULL;
+    r->str = r->_str;
+    r->expr = r->_expr;
+    r->str_previous = r->_str;
+    r->expr_previous = r->expr;
+    r->in_block = false;
+    r->in_group = 0;
+    r->loop_count = 0;
+    r->backtracking = 0;
+    r->in_range = false;
+    r4_search(r);
+    return r;
+}
+
+r4_t *r4_next(r4_t *r, char *expr) {
+    if (expr) {
+        r->_expr = expr;
+    }
+    r->backtracking = 0;
+    r->expr = r->_expr;
+    r4_free_matches(r);
+    r4_search(r);
+    return r;
+}
+
+bool r4_match(char *str, char *expr) {
+    r4_t *r = r4(str, expr);
+    bool result = r->valid;
+    r4_free(r);
+    return result;
+}
+#endif
+#define rautocomplete_new rstring_list_new
+#define rautocomplete_free rstring_list_free
+#define rautocomplete_add rstring_list_add
+#define rautocomplete_find rstring_list_find
+#define rautocomplete_t rstring_list_t
+#define rautocomplete_contains rstring_list_contains
+
+char *r4_escape(char *content) {
+    size_t size = strlen(content) * 2 + 1;
+    char *escaped = (char *)calloc(size, sizeof(char));
+    char *espr = escaped;
+    char *to_escape = "?*+()[]{}^$\\";
+    *espr = '(';
+    espr++;
+    while (*content) {
+        if (strchr(to_escape, *content)) {
+            *espr = '\\';
+            espr++;
+        }
+        *espr = *content;
+        espr++;
+        content++;
+    }
+    *espr = '.';
+    espr++;
+    *espr = '+';
+    espr++;
+    *espr = ')';
+    espr++;
+    *espr = 0;
+    return escaped;
+}
+
+char *rautocomplete_find(rstring_list_t *list, char *expr) {
+    if (!list->count)
+        return NULL;
+    if (!expr || !strlen(expr))
+        return NULL;
+
+    char *escaped = r4_escape(expr);
+
+    for (unsigned int i = list->count - 1; i >= 0; i--) {
+        if (i == -1)
+            break;
+        char *match;
+        r4_t *r = r4(list->strings[i], escaped);
+        if (r->valid && r->match_count == 1) {
+            match = strdup(r->matches[0]);
+        }
+        r4_free(r);
+        if (match) {
+
+            free(escaped);
+            return match;
+        }
+    }
+    free(escaped);
+    return NULL;
+}
+#endif
 #ifndef RPRINT_H
 #define RPRINT_H
 
@@ -310,20 +1184,20 @@ void rprintpf(FILE *f, const char *prefix, const char *format, va_list args) {
     }
 }
 
-void rprintp(char *format, ...) {
+void rprintp(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "", format, args);
     va_end(args);
 }
 
-void rprintf(FILE *f, char *format, ...) {
+void rprintf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "", format, args);
     va_end(args);
 }
-void rprint(char *format, ...) {
+void rprint(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "", format, args);
@@ -332,13 +1206,13 @@ void rprint(char *format, ...) {
 #define printf rprint
 
 // Print line
-void rprintlf(FILE *f, char *format, ...) {
+void rprintlf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\\l", format, args);
     va_end(args);
 }
-void rprintl(char *format, ...) {
+void rprintl(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\\l", format, args);
@@ -346,13 +1220,13 @@ void rprintl(char *format, ...) {
 }
 
 // Black
-void rprintkf(FILE *f, char *format, ...) {
+void rprintkf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[30m", format, args);
     va_end(args);
 }
-void rprintk(char *format, ...) {
+void rprintk(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[30m", format, args);
@@ -360,13 +1234,13 @@ void rprintk(char *format, ...) {
 }
 
 // Red
-void rprintrf(FILE *f, char *format, ...) {
+void rprintrf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[31m", format, args);
     va_end(args);
 }
-void rprintr(char *format, ...) {
+void rprintr(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[31m", format, args);
@@ -374,13 +1248,13 @@ void rprintr(char *format, ...) {
 }
 
 // Green
-void rprintgf(FILE *f, char *format, ...) {
+void rprintgf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[32m", format, args);
     va_end(args);
 }
-void rprintg(char *format, ...) {
+void rprintg(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[32m", format, args);
@@ -388,13 +1262,13 @@ void rprintg(char *format, ...) {
 }
 
 // Yellow
-void rprintyf(FILE *f, char *format, ...) {
+void rprintyf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[33m", format, args);
     va_end(args);
 }
-void rprinty(char *format, ...) {
+void rprinty(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[33m", format, args);
@@ -402,14 +1276,14 @@ void rprinty(char *format, ...) {
 }
 
 // Blue
-void rprintbf(FILE *f, char *format, ...) {
+void rprintbf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[34m", format, args);
     va_end(args);
 }
 
-void rprintb(char *format, ...) {
+void rprintb(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[34m", format, args);
@@ -417,13 +1291,13 @@ void rprintb(char *format, ...) {
 }
 
 // Magenta
-void rprintmf(FILE *f, char *format, ...) {
+void rprintmf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[35m", format, args);
     va_end(args);
 }
-void rprintm(char *format, ...) {
+void rprintm(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[35m", format, args);
@@ -431,13 +1305,13 @@ void rprintm(char *format, ...) {
 }
 
 // Cyan
-void rprintcf(FILE *f, char *format, ...) {
+void rprintcf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[36m", format, args);
     va_end(args);
 }
-void rprintc(char *format, ...) {
+void rprintc(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[36m", format, args);
@@ -445,13 +1319,13 @@ void rprintc(char *format, ...) {
 }
 
 // White
-void rprintwf(FILE *f, char *format, ...) {
+void rprintwf(FILE *f, const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(f, "\e[37m", format, args);
     va_end(args);
 }
-void rprintw(char *format, ...) {
+void rprintw(const char *format, ...) {
     va_list args;
     va_start(args, format);
     rprintpf(stdout, "\e[37m", format, args);
@@ -668,6 +1542,138 @@ FILE *rtest_create_file(char *path, char *content) {
 
 void rtest_delete_file(char *path) { unlink(path); }
 #endif
+#ifndef RKEYTABLE_H
+#define RKEYTABLE_H
+/*
+    DERIVED FROM HASH TABLE K&R
+ */
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct rnklist {
+    struct rnklist *next;
+    struct rnklist *last;
+    char *name;
+    char *defn;
+} rnklist;
+
+static rnklist *rkeytab = NULL;
+
+rnklist *rlkget(char *s) {
+    rnklist *np;
+    for (np = rkeytab; np != NULL; np = np->next)
+        if (strcmp(s, np->name) == 0)
+            return np; // Found
+    return NULL;       // Not found
+}
+
+char *rkget(char *s) {
+    rnklist *np = rlkget(s);
+    return np ? np->defn : NULL;
+}
+
+rnklist *rkset(char *name, char *defn) {
+    rnklist *np;
+    if ((np = (rlkget(name))) == NULL) { // Not found
+        np = (rnklist *)malloc(sizeof(rnklist));
+        np->name = strdup(name);
+        np->next = NULL;
+        np->last = NULL;
+
+        if (defn) {
+            np->defn = strdup(defn);
+        } else {
+            np->defn = NULL;
+        }
+
+        if (rkeytab == NULL) {
+            rkeytab = np;
+            rkeytab->last = np;
+        } else {
+            if (rkeytab->last)
+                rkeytab->last->next = np;
+
+            rkeytab->last = np;
+        }
+    } else {
+        if (np->defn)
+            free((void *)np->defn);
+        if (defn) {
+            np->defn = strdup(defn);
+        } else {
+            np->defn = NULL;
+        }
+    }
+    return np;
+}
+#endif
+#ifndef RHASHTABLE_H
+#define RHASHTABLE_H
+/*
+    ORIGINAL SOURCE IS FROM K&R
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define HASHSIZE 101
+
+// Structure for the table entries
+typedef struct rnlist {
+    struct rnlist *next;
+    char *name;
+    char *defn;
+} rnlist;
+
+// Hash table array
+static rnlist *rhashtab[HASHSIZE];
+
+// Hash function
+unsigned rhash(char *s) {
+    unsigned hashval;
+    for (hashval = 0; *s != '\0'; s++)
+        hashval = *s + 31 * hashval;
+    return hashval % HASHSIZE;
+}
+
+rnlist *rlget(char *s) {
+    rnlist *np;
+    for (np = rhashtab[rhash(s)]; np != NULL; np = np->next)
+        if (strcmp(s, np->name) == 0)
+            return np; // Found
+    return NULL;       // Not found
+}
+
+// Lookup function
+char *rget(char *s) {
+    rnlist *np = rlget(s);
+    return np ? np->defn : NULL;
+}
+
+// Install function (adds a name and definition to the table)
+struct rnlist *rset(char *name, char *defn) {
+    struct rnlist *np = NULL;
+    unsigned hashval;
+
+    if ((rlget(name)) == NULL) { // Not found
+        np = (struct rnlist *)malloc(sizeof(*np));
+        if (np == NULL || (np->name = strdup(name)) == NULL)
+            return NULL;
+        hashval = rhash(name);
+        np->next = rhashtab[hashval];
+        rhashtab[hashval] = np;
+    } else {
+        if (np->defn)
+            free((void *)np->defn);
+        np->defn = NULL;
+    }
+    if ((np->defn = strdup(defn)) == NULL)
+        return NULL;
+    return np;
+}
+#endif
 #ifndef RREX3_H
 #define RREX3_H
 #include <assert.h>
@@ -794,14 +1800,7 @@ bool rrex3_is_function(char chr) {
 
 inline static void rrex3_cmp_literal(rrex3_t *rrex3) {
     rrex3_set_previous(rrex3);
-    if (*rrex3->expr == 0 && !*rrex3->str) {
-        printf("ERROR, EMPTY CHECK");
-        exit(1);
-    }
-    if (rrex3->valid == false) {
-        rrex3->expr++;
-        return;
-    }
+
     if (rrex3->inside_brackets) {
         if (isalpharange(rrex3->expr) || isdigitrange(rrex3->expr)) {
             rrex3_cmp_literal_range(rrex3);
@@ -811,7 +1810,17 @@ inline static void rrex3_cmp_literal(rrex3_t *rrex3) {
 #if RREX3_DEBUG == 1
     printf("Literal check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
            rrex3->valid);
+
 #endif
+    if (*rrex3->expr == 0 && !*rrex3->str) {
+        printf("ERROR, EMPTY CHECK\n");
+        // exit(1);
+    }
+    if (rrex3->valid == false) {
+        rrex3->expr++;
+        return;
+    }
+
     if (*rrex3->expr == *rrex3->str) {
         rrex3->expr++;
         rrex3->str++;
@@ -898,7 +1907,7 @@ inline static void rrex3_cmp_whitespace_upper(rrex3_t *rrex3) {
     rrex3->expr++;
 }
 
-inline static void rrex3_cmp_plus(rrex3_t *rrex3) {
+inline static void rrex3_cmp_plus2(rrex3_t *rrex3) {
 #if RREX3_DEBUG == 1
     printf("Plus check: %c:%c:%d\n", *rrex3->expr, *rrex3->str, rrex3->valid);
 #endif
@@ -965,7 +1974,211 @@ inline static void rrex3_cmp_plus(rrex3_t *rrex3) {
     rrex3->valid = true;
 }
 
+inline static void rrex3_cmp_plus(rrex3_t *rrex3) {
+#if RREX3_DEBUG == 1
+    rprintg("Asterisk start check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+            rrex3->valid);
+#endif
+    if (!rrex3->valid) {
+        rrex3->expr++;
+        return;
+    }
+
+    char *left = rrex3->previous.expr;
+    // printf("%s\n",rrex3->str);
+    char *right = rrex3->expr + 1;
+    if (*right == ')') {
+        right++;
+    }
+    int right_valid = 0;
+    bool right_valid_once = false;
+    char *expr = right;
+    char *right_str = rrex3->str;
+    ;
+    char *right_expr = NULL;
+    char *str = rrex3->str;
+    bool first_time = true;
+    bool left_valid = true;
+    char *str_prev = NULL;
+    bool valid_from_start = true;
+    ;
+    while (*rrex3->str) {
+        if (!left_valid && !right_valid) {
+            break;
+        }
+        if (right_valid && !left_valid) {
+            str = right_str;
+            break;
+        }
+
+        rrex3->expr = right;
+        rrex3->str = str;
+#if RREX3_DEBUG == 1
+        printf("r");
+#endif
+        if (*rrex3->str && rrex3_move(rrex3, false)) {
+            right_valid++;
+            right_str = rrex3->str;
+            expr = rrex3->expr;
+            if (!right_valid_once) {
+                right_expr = rrex3->expr;
+                right_valid_once = true;
+            }
+        } else {
+            right_valid = 0;
+        }
+        if (first_time) {
+            first_time = false;
+            valid_from_start = right_valid;
+        }
+
+        if (right_valid && !valid_from_start && right_valid > 0) {
+            expr = right_expr - 1;
+            ;
+            if (*(right - 1) == ')') {
+                expr = right - 1;
+            }
+            break;
+        }
+
+        if ((!right_valid && right_valid_once)) {
+            expr = right_expr;
+            if (*(right - 1) == ')') {
+                str = str_prev;
+                expr = right - 1;
+            }
+            break;
+        }
+
+        str_prev = str;
+        rrex3->valid = true;
+        rrex3->str = str;
+        rrex3->expr = left;
+#if RREX3_DEBUG == 1
+        printf("l");
+#endif
+        if (rrex3_move(rrex3, false)) {
+            left_valid = true;
+
+            str = rrex3->str;
+        } else {
+            left_valid = false;
+        }
+    }
+
+    rrex3->expr = expr;
+    rrex3->str = str;
+    rrex3->valid = true;
+
+#if RREX3_DEBUG == 1
+    rprintg("Asterisk end check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+            rrex3->valid);
+#endif
+}
+
 inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
+#if RREX3_DEBUG == 1
+    rprintg("Asterisk start check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+            rrex3->valid);
+#endif
+    if (!rrex3->valid) {
+        rrex3->valid = true;
+        rrex3->expr++;
+        return;
+    }
+
+    rrex3->str = rrex3->previous.str;
+    char *left = rrex3->previous.expr;
+    // printf("%s\n",rrex3->str);
+    char *right = rrex3->expr + 1;
+    if (*right == ')') {
+        right++;
+    }
+    int right_valid = 0;
+    bool right_valid_once = false;
+    char *expr = right;
+    char *right_str = rrex3->str;
+    ;
+    char *right_expr = NULL;
+    char *str = rrex3->str;
+    bool first_time = true;
+    bool left_valid = true;
+    char *str_prev = NULL;
+    bool valid_from_start = true;
+    ;
+    while (*rrex3->str) {
+        if (!left_valid && !right_valid) {
+            break;
+        }
+        if (right_valid && !left_valid) {
+            str = right_str;
+            break;
+        }
+
+        rrex3->expr = right;
+        rrex3->str = str;
+#if RREX3_DEBUG == 1
+        printf("r");
+#endif
+        if (*rrex3->str && rrex3_move(rrex3, false)) {
+            right_valid++;
+            right_str = rrex3->str;
+            expr = rrex3->expr;
+            if (!right_valid_once) {
+                right_expr = rrex3->expr;
+                right_valid_once = true;
+            }
+        } else {
+            right_valid = 0;
+        }
+        if (first_time) {
+            first_time = false;
+            valid_from_start = right_valid;
+        }
+
+        if (right_valid && !valid_from_start && right_valid > 0) {
+            expr = right_expr - 1;
+            if (*(right - 1) == ')') {
+                expr = right - 1;
+            }
+            break;
+        }
+
+        if ((!right_valid && right_valid_once)) {
+            expr = right_expr;
+            if (*(right - 1) == ')') {
+                str = str_prev;
+                expr = right - 1;
+            }
+            break;
+        }
+
+        str_prev = str;
+        rrex3->valid = true;
+        rrex3->str = str;
+        rrex3->expr = left;
+#if RREX3_DEBUG == 1
+        printf("l");
+#endif
+        if (rrex3_move(rrex3, false)) {
+            left_valid = true;
+            str = rrex3->str;
+        } else {
+            left_valid = false;
+        }
+    }
+
+    rrex3->expr = expr;
+    rrex3->str = str;
+    rrex3->valid = true;
+
+#if RREX3_DEBUG == 1
+    rprintg("Asterisk end check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+            rrex3->valid);
+#endif
+}
+
+inline static void rrex3_cmp_asterisk2(rrex3_t *rrex3) {
 #if RREX3_DEBUG == 1
     rprintg("Asterisk start check: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
             rrex3->valid);
@@ -1013,7 +2226,10 @@ inline static void rrex3_cmp_asterisk(rrex3_t *rrex3) {
             // Match rright.
             success_next = true;
             if (!next_original) {
-                right_next = rrex3->expr;
+                if (!success_next_once) {
+                    right_next = rrex3->expr;
+                }
+
             } else {
                 right_next = next_original;
                 break;
@@ -1208,6 +2424,13 @@ inline static void rrex3_cmp_range(rrex3_t *rrex3) {
 }
 
 inline static void rrex3_cmp_word_start_or_end(rrex3_t *rrex3) {
+#if RREX3_DEBUG == 1
+    if (*rrex3->expr != 'B') {
+        printf("Check word start or end: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+               rrex3->valid);
+    }
+
+#endif
     rrex3_set_previous(rrex3);
     bool valid = false;
     if (isalpha(*rrex3->str)) {
@@ -1225,6 +2448,11 @@ inline static void rrex3_cmp_word_start_or_end(rrex3_t *rrex3) {
     rrex3->valid = valid;
 }
 inline static void rrex3_cmp_word_not_start_or_end(rrex3_t *rrex3) {
+#if RREX3_DEBUG == 1
+    printf("Check word NOT start or end: %c:%c:%d\n", *rrex3->expr, *rrex3->str,
+           rrex3->valid);
+
+#endif
     rrex3_set_previous(rrex3);
 
     rrex3_cmp_word_start_or_end(rrex3);
@@ -1304,11 +2532,12 @@ inline static void rrex3_cmp_parentheses(rrex3_t *rrex3) {
     rprinty("\\l Parentheses start check: %c:%c:%d\n", *rrex3->expr,
             *rrex3->str, rrex3->valid);
 #endif
+
+    rrex3_set_previous(rrex3);
     if (!rrex3->valid) {
         rrex3->expr++;
         return;
     }
-    rrex3_set_previous(rrex3);
     if (rrex3->match_count == rrex3->match_capacity) {
 
         rrex3->match_capacity++;
@@ -1459,8 +2688,10 @@ static bool rrex3_move(rrex3_t *rrex3, bool resume_on_fail) {
     rrex3->function = rrex3->functions[(int)rrex3->bytecode];
     rrex3->function(rrex3);
     if (!*rrex3->expr && !*rrex3->str) {
-
         rrex3->exit = true;
+        return rrex3->valid;
+    } else if (!*rrex3->expr) {
+        // rrex3->valid = true;
         return rrex3->valid;
     }
     if (rrex3->pattern_error) {
@@ -1468,6 +2699,7 @@ static bool rrex3_move(rrex3_t *rrex3, bool resume_on_fail) {
         return rrex3->valid;
     }
     if (resume_on_fail && !rrex3->valid && *rrex3->expr) {
+
         // rrex3_set_previous(rrex3);
         rrex3->failed.bytecode = rrex3->bytecode;
         rrex3->failed.function = rrex3->function;
@@ -1497,9 +2729,10 @@ static bool rrex3_move(rrex3_t *rrex3, bool resume_on_fail) {
                 return rrex3->valid;
             }
             rrex3->expr = rrex3->_expr;
-            if (rrex3->str)
+            if (*rrex3->str)
                 rrex3->valid = true;
         }
+    } else {
     }
     return rrex3->valid;
 }
@@ -1524,7 +2757,9 @@ rrex3_t *rrex3(rrex3_t *rrex3, char *str, char *expr) {
         if (!rrex3_move(rrex3, true))
             return NULL;
     }
+    rrex3->expr = rrex3->_expr;
     if (rrex3->valid) {
+
         return rrex3;
     } else {
         if (self_initialized) {
@@ -1536,6 +2771,9 @@ rrex3_t *rrex3(rrex3_t *rrex3, char *str, char *expr) {
 
 void rrex3_test() {
     rrex3_t *rrex = rrex3_new();
+
+    assert(rrex3(rrex, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
+                 "\"(.*)\"\"(.*)\"\"(.*)\""));
 
     assert(rrex3(rrex, "aaaaaaa", "a*a$"));
 
@@ -1600,7 +2838,7 @@ void rrex3_test() {
     assert(!rrex3(rrex, "1ab", "1\\Bab"));
     assert(rrex3(rrex, "abc", "a\\Bbc"));
 
-    // Escaping of special characters test.
+    // Escaping of special chars
     assert(rrex3(rrex, "()+*.\\", "\\(\\)\\+\\*\\.\\\\"));
 
     // Pipe
@@ -1660,29 +2898,33 @@ void rrex3_test() {
                  "..........................$"));
     // printf("(%d)\n", rrex->valid);
 
-    assert(rrex3(rrex, "    #include <stdio.h>", "#include.*<(.*)>"));
+    assert(rrex3(rrex, "#include <stdio.h>", "#include.*<(.*)>"));
     assert(!strcmp(rrex->matches[0], "stdio.h"));
-    assert(rrex3(rrex, "    #include \"stdlib.h\"", "#include.\"(.*)\""));
+    assert(rrex3(rrex, "#include \"stdlib.h\"", "#include.\"(.*)\""));
     assert(!strcmp(rrex->matches[0], "stdlib.h"));
-    assert(rrex3(rrex, "    \"stdio.h\"\"string.h\"\"sys/time.h\"",
+    assert(rrex3(rrex, "\"stdio.h\"\"string.h\"\"sys/time.h\"",
                  "\"(.*)\"\"(.*)\"\"(.*)\""));
     assert(!strcmp(rrex->matches[0], "stdio.h"));
     assert(!strcmp(rrex->matches[1], "string.h"));
     assert(!strcmp(rrex->matches[2], "sys/time.h"));
-    /*
+
     assert(rrex3(rrex, "    #include <stdio.h>", "#include.+<(.+)>"));
     assert(!strcmp(rrex->matches[0], "stdio.h"));
     assert(rrex3(rrex, "    #include \"stdlib.h\"", "#include.+\"(.+)\""));
     assert(!strcmp(rrex->matches[0], "stdlib.h"));
 
-     assert(rrex3(rrex, "    \"stdio.h\"\"string.h\"\"sys/time.h\"",
-                "\"(.+)\"\"(.+)\"\"(.+)\""));
+    assert(rrex3(rrex, "    \"stdio.h\"\"string.h\"\"sys/time.h\"",
+                 "\"(.+)\"\"(.+)\"\"(.+)\""));
     assert(!strcmp(rrex->matches[0], "stdio.h"));
     assert(!strcmp(rrex->matches[1], "string.h"));
     assert(!strcmp(rrex->matches[2], "sys/time.h"));
-    */
-    // assert(rrex3(rrex,"char pony() {
-    // }","\\b\\w+(\\s+\\*+)?\\s+\\w+\\s*\\([^)]*\\)\s*\\{[^{}]*\\}"));
+
+    assert(rrex3(rrex, "int abc ", "int (.*)[; ]?$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(rrex3(rrex, "int abc;", "int (.*)[; ]?$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
+    assert(rrex3(rrex, "int abc", "int (.*)[; ]?$"));
+    assert(!strcmp(rrex->matches[0], "abc"));
 
     rrex3_free(rrex);
 }
@@ -1810,6 +3052,7 @@ void rforfile(char *path, void callback(char *)) {
 }
 
 bool rfd_wait(int fd, int ms) {
+
     fd_set read_fds;
     struct timeval timeout;
 
@@ -2065,7 +3308,7 @@ int rstrip_whitespace(char *input, char *output) {
     int count = 0;
     size_t len = strlen(input);
     for (size_t i = 0; i < len; i++) {
-        if (input[i] == '\t' || input[i] == ' ') {
+        if (input[i] == '\t' || input[i] == ' ' || input[i] == '\n') {
             continue;
         }
         count = i;
@@ -2461,7 +3704,6 @@ void rlib_test_progressbar() {
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-
 typedef struct winsize winsize_t;
 
 typedef struct rshell_keypress_t {
@@ -2477,16 +3719,19 @@ typedef struct rshell_keypress_t {
 typedef struct rterm_t {
     bool show_cursor;
     bool show_footer;
+    int ms_tick;
     rshell_keypress_t key;
     void (*before_cursor_move)(struct rterm_t *);
     void (*after_cursor_move)(struct rterm_t *);
     void (*after_key_press)(struct rterm_t *);
     void (*before_key_press)(struct rterm_t *);
     void (*before_draw)(struct rterm_t *);
+    void (*after_draw)(struct rterm_t *);
     void *session;
     unsigned long iterations;
     void (*tick)(struct rterm_t *);
     char *status_text;
+    char *_status_text_previous;
     winsize_t size;
     struct {
         int x;
@@ -2501,7 +3746,10 @@ typedef void (*rterm_event)(rterm_t *);
 void rterm_init(rterm_t *rterm) {
     memset(rterm, 0, sizeof(rterm_t));
     rterm->show_cursor = true;
-    rterm->show_cursor = true;
+    rterm->cursor.x = 0;
+    rterm->cursor.y = 0;
+    rterm->ms_tick = 100;
+    rterm->_status_text_previous = NULL;
 }
 
 void rterm_getwinsize(winsize_t *w) {
@@ -2516,8 +3764,8 @@ void rterm_getwinsize(winsize_t *w) {
 void enableRawMode(struct termios *orig_termios) {
     struct termios raw = *orig_termios;
     raw.c_lflag &= ~(ICANON | ECHO); // Disable canonical mode and echoing
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 1; // Set timeout for read input
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 240; // Set timeout for read input
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
@@ -2533,7 +3781,7 @@ void rterm_clear_screen() {
 }
 
 void setBackgroundColor() {
-    printf("\x1b[44m"); // Set background color to blue
+    printf("\x1b[34m"); // Set background color to blue
 }
 
 void rterm_move_cursor(int x, int y) {
@@ -2552,7 +3800,16 @@ void cursor_restore(rterm_t *rt) {
 }
 
 void rterm_print_status_bar(rterm_t *rt, char c, unsigned long i) {
+    if (rt->_status_text_previous &&
+        !strcmp(rt->_status_text_previous, rt->status_text)) {
+        return;
+    }
+    if (rt->_status_text_previous) {
+        free(rt->_status_text_previous);
+    }
+    rt->_status_text_previous = strdup(rt->status_text);
     winsize_t ws = rt->size;
+    cursor_set(rt, rt->cursor.x, rt->cursor.y);
     rterm_move_cursor(0, ws.ws_row - 1);
 
     char output_str[1024];
@@ -2585,16 +3842,17 @@ void rterm_hide_cursor() {
     printf("\x1b[?25l"); // Hide the cursor
 }
 
-rshell_keypress_t rshell_getkey() {
+rshell_keypress_t rshell_getkey(rterm_t *rt) {
     static rshell_keypress_t press;
     press.c = 0;
     press.ctrl = false;
     press.shift = false;
     press.escape = false;
-    press.pressed = rfd_wait(0, 100);
-    if (press.pressed) {
-        press.c = getchar();
+    press.pressed = rfd_wait(0, rt->ms_tick);
+    if (!press.pressed) {
+        return press;
     }
+    press.c = getchar();
     char ch = press.c;
     if (ch == '\x1b') {
         // Get detail
@@ -2617,6 +3875,9 @@ rshell_keypress_t rshell_getkey() {
                     press.c = getchar(); // De arrow
                 }
             }
+        } else if (ch == 27) {
+            press.escape = true;
+            press.c = ch;
         } else {
             press.c = ch;
         }
@@ -2632,6 +3893,7 @@ void rterm_loop(rterm_t *rt) {
 
     int x = 0, y = 0; // Initial cursor position
     char ch = 0;
+
     ;
     while (1) {
         rterm_getwinsize(&rt->size);
@@ -2641,34 +3903,38 @@ void rterm_loop(rterm_t *rt) {
         }
 
         rterm_hide_cursor();
-        // setBackgroundColor();
+        setBackgroundColor();
         rterm_clear_screen();
         if (rt->before_draw) {
             rt->before_draw(rt);
         }
         rterm_print_status_bar(rt, ch, rt->iterations);
+        if (rt->after_draw) {
+            rt->after_draw(rt);
+        }
         if (!rt->iterations || (x != rt->cursor.x || y != rt->cursor.y)) {
-            if (y == rt->size.ws_row) {
-                y--;
+            if (rt->cursor.y == rt->size.ws_row) {
+                rt->cursor.y--;
             }
-            if (y < 0) {
-                y = 0;
+            if (rt->cursor.y < 0) {
+                rt->cursor.y = 0;
             }
-            rt->cursor.x = x;
-            rt->cursor.y = y;
+            x = rt->cursor.x;
+            y = rt->cursor.y;
             if (rt->before_cursor_move)
                 rt->before_cursor_move(rt);
             cursor_set(rt, rt->cursor.x, rt->cursor.y);
             if (rt->after_cursor_move)
                 rt->after_cursor_move(rt);
-            x = rt->cursor.x;
-            y = rt->cursor.y;
+            // x = rt->cursor.x;
+            // y = rt->cursor.y;
         }
         if (rt->show_cursor)
             rterm_show_cursor();
+
         fflush(stdout);
 
-        rt->key = rshell_getkey();
+        rt->key = rshell_getkey(rt);
         if (rt->key.pressed && rt->before_key_press) {
             rt->before_key_press(rt);
         }
@@ -2676,34 +3942,37 @@ void rterm_loop(rterm_t *rt) {
         ch = key.c;
         if (ch == 'q')
             break; // Press 'q' to quit
-
+        if (key.c == -1) {
+            nsleep(1000 * 1000);
+        }
         // Escape
         if (key.escape) {
             switch (key.c) {
             case 65: // Move up
-                if (y > -1)
-                    y--;
+                if (rt->cursor.y > -1)
+                    rt->cursor.y--;
                 break;
             case 66: // Move down
-                if (y < rt->size.ws_row)
-                    y++;
+                if (rt->cursor.y < rt->size.ws_row)
+                    rt->cursor.y++;
                 break;
             case 68: // Move left
-                if (x > 0)
-                    x--;
+                if (rt->cursor.x > 0)
+                    rt->cursor.x--;
                 if (key.ctrl)
-                    x -= 4;
+                    rt->cursor.x -= 4;
                 break;
             case 67: // Move right
-                if (x < rt->size.ws_col) {
-                    x++;
+                if (rt->cursor.x < rt->size.ws_col) {
+                    rt->cursor.x++;
                 }
                 if (key.ctrl) {
-                    x += 4;
+                    rt->cursor.x += 4;
                 }
                 break;
             }
         }
+
         if (rt->key.pressed && rt->after_key_press) {
             rt->after_key_press(rt);
         }

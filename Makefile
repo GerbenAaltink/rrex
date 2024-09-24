@@ -62,6 +62,9 @@ rrex4: rrex4.c rrex4.h
 run_rrex4:
 	./rrex4 
 
+debug_rrex4:
+	./rrex4 --debug
+
 coverage_rrex4:
 	@rm -f *.gcda   2>/dev/null
 	@rm -f *.gcno   2>/dev/null
