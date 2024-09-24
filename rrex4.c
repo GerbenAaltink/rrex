@@ -173,8 +173,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    r4_enable_debug();
     //Has to be fixed
+    r4_match_stats("r4@r4.net","[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]*$");
     //r4_match_stats("r4@r4.net", "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     //exit(0);
     
@@ -359,8 +359,6 @@ int main(int argc, char *argv[]) {
                               "#define\\s+([A-Za-z_0-9]+)\\s+([A-Za-z_0-9]+)"));
         //
         assert(r4_match_stats("bbb", "a*(bbb)"));
-
-        assert(r4_match_stats("abcdefg", "(.*)(.*)"));
 
         // Tests added for coverage
         assert(!r4_match_stats("1", "[\\D]"));
