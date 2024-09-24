@@ -37,7 +37,6 @@ static char *_format_function_name(const char *name) {
 
 struct r4_t;
 
-
 void r4_enable_debug() { _r4_debug = true; }
 void r4_disable_debug() { _r4_debug = false; }
 
@@ -47,6 +46,7 @@ typedef struct r4_t {
     bool debug;
     bool valid;
     bool in_block;
+    bool is_greedy;
     bool in_range;
     unsigned int backtracking;
     unsigned int loop_count;
@@ -60,7 +60,7 @@ typedef struct r4_t {
     bool (*slash_functions[254])(struct r4_t *);
     char *_str;
     char *_expr;
-    char * match;
+    char *match;
     char *str;
     char *expr;
     char *str_previous;
@@ -77,7 +77,7 @@ v4_function_map v4_function_map_block[256];
 static void r4_free_matches(r4_t *r) {
     if (!r)
         return;
-    if(r->match){
+    if (r->match) {
         free(r->match);
         r->match = NULL;
     }
@@ -113,7 +113,7 @@ static bool r4_validate_literal(r4_t *r4) {
         r4->str++;
     }
     r4->expr++;
-    if (r4->in_range || r4->in_block) {
+    if (r4->in_block || r4->in_range || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -139,12 +139,12 @@ static bool r4_validate_plus(r4_t *r4) {
         return_expr = expr_right;
         expr_right++;
     }
-    r4->in_block = true;
+    r4->is_greedy = false;
     r4->expr = expr_left;
     while (r4->valid) {
         if (*expr_right) {
             r4->expr = expr_right;
-            r4->in_block = false;
+            r4->is_greedy = true;
             if (r4_backtrack(r4)) {
 
                 if (return_expr) {
@@ -153,7 +153,7 @@ static bool r4_validate_plus(r4_t *r4) {
                 }
                 return r4_validate(r4);
             } else {
-                r4->in_block = true;
+                r4->is_greedy = false;
             }
         }
         r4->valid = true;
@@ -162,7 +162,7 @@ static bool r4_validate_plus(r4_t *r4) {
         r4_validate(r4);
         str = r4->str;
     }
-    r4->in_block = false;
+    r4->is_greedy = true;
     r4->valid = true;
     r4->expr = return_expr ? return_expr : expr_right;
     return r4_validate(r4);
@@ -171,7 +171,8 @@ static bool r4_validate_plus(r4_t *r4) {
 static bool r4_validate_dollar(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     r4->expr++;
-    return *r4->str == 0;
+    r4->valid = *r4->str == 0;
+    return r4_validate(r4);
 }
 
 static bool r4_validate_roof(r4_t *r4) {
@@ -192,7 +193,7 @@ static bool r4_validate_dot(r4_t *r4) {
     r4->valid = *r4->str != '\n';
     r4->str++;
 
-    if (r4->in_range || r4->in_block) {
+    if (r4->in_block || r4->in_range || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -204,7 +205,7 @@ static bool r4_validate_asterisk(r4_t *r4) {
     if (r4->valid == false) {
         r4->valid = true;
         return r4->valid;
-        //return r4_validate(r4);
+        // return r4_validate(r4);
     }
     char *expr_left = r4->expr_previous;
     char *expr_right = r4->expr;
@@ -214,12 +215,12 @@ static bool r4_validate_asterisk(r4_t *r4) {
         return_expr = expr_right;
         expr_right++;
     }
-    r4->in_block = true;
+    r4->is_greedy = false;
     r4->expr = expr_left;
     while (r4->valid) {
         if (*expr_right) {
             r4->expr = expr_right;
-            r4->in_block = false;
+            r4->is_greedy = true;
             if (r4_backtrack(r4)) {
 
                 if (return_expr) {
@@ -228,7 +229,7 @@ static bool r4_validate_asterisk(r4_t *r4) {
                 }
                 return r4_validate(r4);
             } else {
-                r4->in_block = true;
+                r4->is_greedy = false;
             }
         }
         r4->valid = true;
@@ -237,7 +238,7 @@ static bool r4_validate_asterisk(r4_t *r4) {
         r4_validate(r4);
         str = r4->str;
     }
-    r4->in_block = false;
+    r4->is_greedy = true;
     r4->valid = true;
     r4->expr = return_expr ? return_expr : expr_right;
     return r4_validate(r4);
@@ -262,10 +263,7 @@ static bool r4_validate_digit(r4_t *r4) {
         r4->str++;
     }
     r4->expr++;
-    if (r4->in_block) {
-        return r4->valid;
-    }
-    if (r4->in_range) {
+    if (r4->in_block || r4->in_range || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -279,11 +277,7 @@ static bool r4_validate_not_digit(r4_t *r4) {
     }
     r4->expr++;
 
-    if (r4->in_block) {
-        return r4->valid;
-    }
-
-    if (r4->in_range) {
+    if (r4->in_block || r4->in_range || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -297,11 +291,7 @@ static bool r4_validate_word(r4_t *r4) {
     }
     r4->expr++;
 
-    if (r4->in_block) {
-        return r4->valid;
-    }
-
-    if (r4->in_range) {
+    if (r4->in_block || r4->in_range || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -315,11 +305,7 @@ static bool r4_validate_not_word(r4_t *r4) {
     }
     r4->expr++;
 
-    if (r4->in_block) {
-        return r4->valid;
-    }
-
-    if (r4->in_range) {
+    if (r4->in_block || r4->in_range || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -384,7 +370,7 @@ static bool r4_validate_block_open(r4_t *r4) {
     r4->expr++;
     r4->expr_previous = expr_self;
 
-    if (r4->in_range) {
+    if (r4->in_range || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -397,7 +383,7 @@ static bool r4_validate_whitespace(r4_t *r4) {
     if (r4->valid) {
         r4->str++;
     }
-    if (r4->in_range || r4->in_block) {
+    if (r4->in_range || r4->in_block || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -409,7 +395,7 @@ static bool r4_validate_not_whitespace(r4_t *r4) {
     if (r4->valid) {
         r4->str++;
     }
-    if (r4->in_range || r4->in_block) {
+    if (r4->in_range || r4->in_block || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -509,17 +495,17 @@ static bool r4_validate_group_open(r4_t *r4) {
     if (!valid || *r4->expr != ')') {
         // this is a valid case if not everything between () matches
         r4->in_group--;
-        if(save_match == false){
+        if (save_match == false) {
             r4->valid = true;
         }
-       
+
         // Not direct return? Not sure
         return r4_validate(r4);
     }
     if (save_match) {
         char *str_extract_end = r4->str;
         unsigned int extracted_length = str_extract_end - str_extract_start;
-            //strlen(str_extract_start) - strlen(str_extract_end);
+        // strlen(str_extract_start) - strlen(str_extract_end);
         char *str_extracted =
             (char *)calloc(sizeof(char), extracted_length + 1);
         strncpy(str_extracted, str_extract_start, extracted_length);
@@ -535,7 +521,7 @@ static bool r4_validate_group_open(r4_t *r4) {
 static bool r4_validate_slash(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     // The handling code for handling slashes is implemented in r4_validate
-    char * expr_previous = r4->expr_previous;
+    char *expr_previous = r4->expr_previous;
     r4->expr++;
     r4_function f = v4_function_map_slash[(int)*r4->expr];
     r4->expr_previous = expr_previous;
@@ -557,7 +543,7 @@ static bool r4_validate_word_boundary_start(r4_t *r4) {
     }
     r4->valid =
         isalpha(*r4->str) && (r4->str == r4->_str || !isalpha(*(r4->str - 1)));
-    if (r4->in_range || r4->in_block) {
+    if (r4->in_range || r4->in_block || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -570,7 +556,7 @@ static bool r4_validate_word_boundary_end(r4_t *r4) {
     }
     r4->valid =
         isalpha(*r4->str) && (*(r4->str + 1) == 0 || !isalpha(*(r4->str + 1)));
-    if (r4->in_range || r4->in_block) {
+    if (r4->in_range || r4->in_block || !r4->is_greedy) {
         return r4->valid;
     }
     return r4_validate(r4);
@@ -647,20 +633,21 @@ static bool r4_pipe_next(r4_t *r4) {
     return false;
 }
 
-static bool r4_backtrack(r4_t *r4){
-    if(_r4_debug)
-        printf("\033[36mDEBUG: backtrack start (%d)\n",r4->backtracking);
+static bool r4_backtrack(r4_t *r4) {
+    if (_r4_debug)
+        printf("\033[36mDEBUG: backtrack start (%d)\n", r4->backtracking);
     r4->backtracking++;
-    char * str = r4->str;
-    char * expr = r4->expr;
+    char *str = r4->str;
+    char *expr = r4->expr;
     bool result = r4_validate(r4);
     r4->backtracking--;
-    if(result == false){
+    if (result == false) {
         r4->expr = expr;
         r4->str = str;
     }
-    if(_r4_debug)
-        printf("DEBUG: backtrack end (%d) result: %d %s\n", r4->backtracking, result, r4->backtracking == 0 ? "\033[0m" : "");
+    if (_r4_debug)
+        printf("DEBUG: backtrack end (%d) result: %d %s\n", r4->backtracking,
+               result, r4->backtracking == 0 ? "\033[0m" : "");
     return result;
 }
 
@@ -668,8 +655,7 @@ static bool r4_validate(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     r4->validation_count++;
     char c_val = *r4->expr;
-    if (c_val == 0)
-    {
+    if (c_val == 0) {
         return r4->valid;
     }
     if (!r4_looks_behind(c_val)) {
@@ -685,14 +671,18 @@ static bool r4_validate(r4_t *r4) {
         }
     }
     r4_function f;
-    f = v4_function_map_global[(int)c_val];
+    if (r4->in_block) {
+        f = v4_function_map_block[(int)c_val];
+    } else {
+        f = v4_function_map_global[(int)c_val];
+    }
 
     r4->valid = f(r4);
     return r4->valid;
 }
 
-char * r4_get_match(r4_t *r) {
-    char * match = (char *)malloc(r->length + 1);
+char *r4_get_match(r4_t *r) {
+    char *match = (char *)malloc(r->length + 1);
     strncpy(match, r->_str + r->start, r->length);
     match[r->length] = 0;
     return match;
@@ -704,7 +694,7 @@ static bool r4_search(r4_t *r) {
     while (*r->str) {
         if (!(valid = r4_validate(r))) {
             // Move next until we find a match
-            if(!r->backtracking){
+            if (!r->backtracking) {
                 r->start++;
             }
             str_next++;
@@ -713,8 +703,8 @@ static bool r4_search(r4_t *r) {
             r->valid = true;
         } else {
             /// HIGH DOUBT
-            if(!r->backtracking){
-            //r->start = 0;
+            if (!r->backtracking) {
+                // r->start = 0;
             }
             break;
         }
@@ -738,6 +728,7 @@ r4_t *r4(const char *str, const char *expr) {
     r->str_previous = r->_str;
     r->expr_previous = r->expr;
     r->in_block = false;
+    r->is_greedy = true;
     r->in_group = 0;
     r->loop_count = 0;
     r->backtracking = 0;
@@ -752,6 +743,10 @@ r4_t *r4_next(r4_t *r, char *expr) {
     }
     r->backtracking = 0;
     r->expr = r->_expr;
+    r->is_greedy = true;
+    r->in_block = false;
+    r->in_range = false;
+    r->in_group = false;
     r4_free_matches(r);
     r4_search(r);
     return r;

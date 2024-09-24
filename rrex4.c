@@ -1,8 +1,8 @@
 #define R4_DEBUG_a
 
 #include "rrex4.h"
-#include <regex.h>
 #include "rlib.h"
+#include <regex.h>
 
 bool bench_r4(unsigned int times, char *str, char *expr) {
     RBENCH(times, {
@@ -95,7 +95,7 @@ bool r4_match_stats(char *str, char *expr) {
     r4_t *r = r4(str, expr);
     bool result = r->valid;
     printf("%d:(%s)<%s>\n", r->validation_count, r->_str, r->_expr);
-    if(result){
+    if (result) {
         printf(" - match(0)\t: \"%s\"\n", r->match);
     }
     for (unsigned i = 0; i < r->match_count; i++) {
@@ -105,36 +105,36 @@ bool r4_match_stats(char *str, char *expr) {
     return result;
 }
 
-void test_r4_bug_check_capture_overflow(){
+void test_r4_bug_check_capture_overflow() {
     // This is a former bug in r4.
 
     // Case one
-    r4_t * r = r4("test","(test)+");
+    r4_t *r = r4("test", "(test)+");
     assert(r->match_count == 1);
     r4_free(r);
 
     // Case two
-    r = r4("tester","(t\\est\\e\\r)+");
+    r = r4("tester", "(t\\est\\e\\r)+");
     assert(r->match_count == 1);
     printf("%s\n", r->matches[0]);
     r4_free(r);
 
     // Case three
-    r = r4("test","(t\\est\\e\\r)+");
+    r = r4("test", "(t\\est\\e\\r)+");
     assert(r->match_count == 0);
     r4_free(r);
 }
 
 void test_r4_capture_main_group() {
     // Case 1
-    r4_t * r = r4("testtesttesttest","(test)+test$");
-    //printf("%s\n",r->match);
-    //assert(!strcmp(r->match,"testtesttesttest"));
+    r4_t *r = r4("testtesttesttest", "(test)+test$");
+    // printf("%s\n",r->match);
+    // assert(!strcmp(r->match,"testtesttesttest"));
     assert(r->match_count == 3);
     assert(!strcmp(r->matches[0], "test"));
     assert(!strcmp(r->matches[1], "test"));
     assert(!strcmp(r->matches[2], "test"));
-    r4_free(r); 
+    r4_free(r);
     // Case 2 (with search)
     /*
     r = r4("          testtesttesttest","(test)+test$");
@@ -147,8 +147,8 @@ void test_r4_capture_main_group() {
     r4_free(r); */
 }
 
-char test_r4_capture_dynamic_amount(){
-    r4_t * r = r4("testtesttesttest","(test)+test$");
+char test_r4_capture_dynamic_amount() {
+    r4_t *r = r4("testtesttesttest", "(test)+test$");
     assert(r->match_count == 3);
     assert(!strcmp(r->matches[0], "test"));
     assert(!strcmp(r->matches[1], "test"));
@@ -158,25 +158,29 @@ char test_r4_capture_dynamic_amount(){
     return true;
     // Some advanced capturing
     // Fails
-    r = r4("testtesttesttest","([tes]+)+test$");
-    printf("%d\n",r->match_count);
+    r = r4("testtesttesttest", "([tes]+)+test$");
+    printf("%d\n", r->match_count);
     assert(r->match_count == 1);
     assert(!strcmp(r->matches[0], "testtesttest"));
     r4_free(r);
-}   
+}
 
-int main(int argc, char * argv[]) {
+int main(int argc, char *argv[]) {
 
-    for(int i = 0; i < argc; i++){
-        if(!strcmp(argv[i],"--debug")){
+    for (int i = 0; i < argc; i++) {
+        if (!strcmp(argv[i], "--debug")) {
             r4_enable_debug();
         }
     }
 
+    r4_enable_debug();
+    //Has to be fixed
+    //r4_match_stats("retoor@retoor.net", "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    //exit(0);
+
     test_r4_capture_main_group();
     assert(r4_match_stats("testtesttesttest", "(test)+test$"));
     assert(r4_match_stats("testtest", "test"));
-    
 
     // Group testing
     assert(r4_match_stats("aaadddd", "(a+)(d+)$"));
@@ -195,18 +199,18 @@ int main(int argc, char * argv[]) {
     assert(!r4_match_stats("1", "\\w"));
     assert(r4_match_stats("1", "\\W"));
     assert(!r4_match_stats("a", "\\W"));
-    assert(r4_match_stats("aa","\\w{2}"));
-    assert(r4_match_stats("11","\\W{2}"));
-    assert(r4_match_stats("1","[\\W]"));
+    assert(r4_match_stats("aa", "\\w{2}"));
+    assert(r4_match_stats("11", "\\W{2}"));
+    assert(r4_match_stats("1", "[\\W]"));
 
-    // Digits 
+    // Digits
     assert(r4_match_stats("1", "\\d"));
     assert(!r4_match_stats("a", "\\d"));
     assert(r4_match_stats("a", "\\D"));
     assert(!r4_match_stats("1", "\\D"));
-    assert(r4_match_stats("11","\\d{2}$"));
-    assert(r4_match_stats("aa","\\D{2}$"));
-    assert(r4_match_stats("a","[\\D]"));
+    assert(r4_match_stats("11", "\\d{2}$"));
+    assert(r4_match_stats("aa", "\\D{2}$"));
+    assert(r4_match_stats("a", "[\\D]"));
 
     // Whitespace
     assert(r4_match_stats(" ", "\\s"));
@@ -244,13 +248,13 @@ int main(int argc, char * argv[]) {
 
     // Range
 
-    assert(r4_match_stats("a","a{1}"));
-    assert(r4_match_stats("ab","a{1}"));
-    assert(r4_match_stats("aa","a{2}"));
-    assert(!r4_match_stats("aab","a{3}"));
-    assert(!r4_match_stats("a1","a{2}"));
-    assert(r4_match_stats("ab","a{1,2}"));
-    assert(r4_match_stats("aa","a{2,}"));
+    assert(r4_match_stats("a", "a{1}"));
+    assert(r4_match_stats("ab", "a{1}"));
+    assert(r4_match_stats("aa", "a{2}"));
+    assert(!r4_match_stats("aab", "a{3}"));
+    assert(!r4_match_stats("a1", "a{2}"));
+    assert(r4_match_stats("ab", "a{1,2}"));
+    assert(r4_match_stats("aa", "a{2,}"));
 
     // Miscellaneous tests
     bool debug_mode_original = _r4_debug;
@@ -261,8 +265,8 @@ int main(int argc, char * argv[]) {
     assert(!_r4_debug);
     _r4_debug = debug_mode_original;
 
-    assert(r4_match("a","a"));
-    assert(!r4_match("b","a"));
+    assert(r4_match("a", "a"));
+    assert(!r4_match("b", "a"));
     r4_init(NULL);
     r4_free(NULL);
     r4_free_matches(NULL);
@@ -275,7 +279,6 @@ int main(int argc, char * argv[]) {
 
     // Check if capture amount is dynamic
     test_r4_capture_dynamic_amount();
-    
 
     char *c_function_regex =
         "(\\w[\\w\\d]*[\\s\\*]*)\\s*\\w[\\w\\d]*\\s*\\((.*)\\)\\s*\\{";
@@ -351,18 +354,15 @@ int main(int argc, char * argv[]) {
         assert(r4_match_stats("#define TEST_JE VALUE",
                               "#define\\s+([A-Za-z_0-9]+)\\s+([A-Za-z_0-9]+)"));
         //
-        assert(r4_match_stats("bbb","a*(bbb)"));
+        assert(r4_match_stats("bbb", "a*(bbb)"));
 
-        assert(r4_match_stats("abcdefg","(.*)(.*)"));
+        assert(r4_match_stats("abcdefg", "(.*)(.*)"));
 
         // Tests added for coverage
         assert(!r4_match_stats("1", "[\\D]"));
         assert(!r4_match_stats("11", "\\D{2}"));
-        assert(!r4_match_stats("ab","ba"));
-        assert(r4_match_stats("2","[4-2]"));
-
-        
-        
+        assert(!r4_match_stats("ab", "ba"));
+        assert(r4_match_stats("2", "[4-2]"));
     });
 
     return 0;
