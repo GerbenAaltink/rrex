@@ -67,7 +67,7 @@ coverage_rrex4:
 	@rm -f *.gcno   2>/dev/null
 	@rm -f rrex4.coverage.info   2>/dev/null
 	gcc -pg -fprofile-arcs -ftest-coverage -g -o rrex4_coverage.o rrex4.c
-	./rrex4_coverage.o test
+	./rrex4_coverage.o test --debug
 	lcov --capture --directory . --output-file rrex4.coverage.info
 	genhtml rrex4.coverage.info --output-directory rrex4.coverage
 	@rm -f *.gcda   2>/dev/null

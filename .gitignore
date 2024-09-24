@@ -7,6 +7,7 @@ rrex2full
 rrex4
 rrex.coverage
 rrex3.coverage
+rrex4.coverage
 *.cast
 *.tty
 regex.py

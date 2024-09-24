@@ -10,10 +10,8 @@
 #define R4_DEBUG_a
 
 #ifdef R4_DEBUG
-#define _R4_DEBUG 1
 static int _r4_debug = 1;
 #else
-#define _R4_DEBUG 0
 static int _r4_debug = 0;
 #endif
 
@@ -338,10 +336,6 @@ static bool r4_isrange(char *s) {
     return isalnum(*(s + 2));
 }
 
-static bool r4_validate_block_close(r4_t *r4) {
-    DEBUG_VALIDATE_FUNCTION
-    return r4->valid;
-}
 static bool r4_validate_block_open(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     if (r4->valid == false) {
@@ -542,9 +536,10 @@ static bool r4_validate_group_open(r4_t *r4) {
 static bool r4_validate_slash(r4_t *r4) {
     DEBUG_VALIDATE_FUNCTION
     // The handling code for handling slashes is implemented in r4_validate
+    char * expr_previous = r4->expr_previous;
     r4->expr++;
     r4_function f = v4_function_map_slash[(int)*r4->expr];
-    
+    r4->expr_previous = expr_previous;
     return f(r4);
 }
 
@@ -601,7 +596,6 @@ static void v4_init_function_maps() {
     v4_function_map_global['|'] = r4_validate_pipe;
     v4_function_map_global['\\'] = r4_validate_slash;
     v4_function_map_global['['] = r4_validate_block_open;
-    v4_function_map_global[']'] = r4_validate_block_close;
     v4_function_map_global['{'] = r4_validate_range;
     v4_function_map_global['('] = r4_validate_group_open;
     v4_function_map_global[')'] = r4_validate_group_close;
@@ -616,15 +610,13 @@ static void v4_init_function_maps() {
     v4_function_map_block['\\'] = r4_validate_slash;
 
     v4_function_map_block['{'] = r4_validate_range;
-
-    v4_function_map_block[']'] = r4_validate_block_close;
 }
 
 void r4_init(r4_t *r4) {
     v4_init_function_maps();
     if (r4 == NULL)
         return;
-    r4->debug = _R4_DEBUG;
+    r4->debug = _r4_debug;
     r4->valid = true;
     r4->validation_count = 0;
     r4->match_count = 0;

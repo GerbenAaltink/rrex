@@ -178,7 +178,6 @@ int main(unsigned int argc, char * argv[]) {
     assert(r4_match_stats("testtesttesttest", "(test)+test$"));
     assert(r4_match_stats("testtest", "test"));
     
-   // return 0;
 
     // Group testing
     assert(r4_match_stats("aaadddd", "(a+)(d+)$"));
@@ -192,17 +191,48 @@ int main(unsigned int argc, char * argv[]) {
     assert(r4_match_stats("aaadddd", "(d*)"));
     assert(r4_match_stats("aaa\"dddd\" ", "\"(d*)\"\\s*"));
 
+    // Words
+    assert(r4_match_stats("a", "\\w"));
+    assert(!r4_match_stats("1", "\\w"));
+    assert(r4_match_stats("1", "\\W"));
+    assert(!r4_match_stats("a", "\\W"));
+    assert(r4_match_stats("aa","\\w{2}"));
+    assert(r4_match_stats("11","\\W{2}"));
+    assert(r4_match_stats("1","[\\W]"));
+
+    // Digits 
+    assert(r4_match_stats("1", "\\d"));
+    assert(!r4_match_stats("a", "\\d"));
+    assert(r4_match_stats("a", "\\D"));
+    assert(!r4_match_stats("1", "\\D"));
+    assert(r4_match_stats("11","\\d{2}$"));
+    assert(r4_match_stats("aa","\\D{2}$"));
+    assert(r4_match_stats("a","[\\D]"));
+
+    // Whitespace
+    assert(r4_match_stats(" ", "\\s"));
+    assert(r4_match_stats(" a", "\\s"));
+    assert(!r4_match_stats("a", "[\\s]"));
+    assert(r4_match_stats("a ", "[\\s]"));
+    assert(r4_match_stats("a", "\\S"));
+    assert(!r4_match_stats(" ", "\\S"));
+    assert(!r4_match_stats(" ", "[\\S]"));
+    assert(r4_match_stats("b ", "[\\S]"));
+    assert(r4_match_stats(" b", "[\\S]"));
+
     // Boundaries
     assert(r4_match_stats("a", "\\b"));
     assert(r4_match_stats("a", "\\ba$"));
     assert(r4_match_stats("a", "^\\ba$"));
     assert(r4_match_stats("aa", "\\b"));
     assert(!r4_match_stats("aa", "\\b$"));
+    assert(r4_match_stats("aa", "[\\b]"));
     assert(r4_match_stats("a", "\\B"));
     assert(r4_match_stats("a", "\\Ba$"));
     assert(r4_match_stats("a", "^\\Ba$"));
     assert(r4_match_stats("aa", "\\B"));
     assert(!r4_match_stats("aa", "^\\B"));
+    assert(!r4_match_stats("a1", "a[\\B]$"));
 
     // Optional
     assert(!r4_match_stats("a", "?"));
@@ -212,6 +242,31 @@ int main(unsigned int argc, char * argv[]) {
     assert(r4_match_stats("a", "a?$"));
     assert(!r4_match_stats("a", "b?$"));
     assert(r4_match_stats("a", "[def]?a$"));
+
+    // Range
+
+    assert(r4_match_stats("a","a{1}"));
+    assert(r4_match_stats("ab","a{1}"));
+    assert(r4_match_stats("aa","a{2}"));
+    assert(!r4_match_stats("aab","a{3}"));
+    assert(!r4_match_stats("a1","a{2}"));
+    assert(r4_match_stats("ab","a{1,2}"));
+    assert(r4_match_stats("aa","a{2,}"));
+
+    // Miscellaneous tests
+    bool debug_mode_original = _r4_debug;
+    _r4_debug = false;
+    r4_enable_debug();
+    assert(_r4_debug);
+    r4_disable_debug();
+    assert(!_r4_debug);
+    _r4_debug = debug_mode_original;
+
+    assert(r4_match("a","a"));
+    assert(!r4_match("b","a"));
+    r4_init(NULL);
+    r4_free(NULL);
+    r4_free_matches(NULL);
 
     // Next tests
     test_r4_next();
@@ -300,6 +355,15 @@ int main(unsigned int argc, char * argv[]) {
         assert(r4_match_stats("bbb","a*(bbb)"));
 
         assert(r4_match_stats("abcdefg","(.*)(.*)"));
+
+        // Tests added for coverage
+        assert(!r4_match_stats("1", "[\\D]"));
+        assert(!r4_match_stats("11", "\\D{2}"));
+        assert(!r4_match_stats("ab","ba"));
+        assert(r4_match_stats("2","[4-2]"));
+
+        
+        
     });
 
     return 0;
