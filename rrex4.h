@@ -558,7 +558,6 @@ static void r4_validate_word_boundary_start(r4_t *r4) {
     }
     r4->valid =
         isalpha(*r4->str) && (r4->str == r4->_str || !isalpha(*(r4->str - 1)));
-    printf("<<%d>>\n", r4->valid);
     if (r4->in_range || r4->in_block) {
         return r4->valid;
     }
